@@ -1,0 +1,145 @@
+import { NavLink, Outlet, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { Icon } from './ui';
+
+const NAV = [
+  { to: '/app', label: 'Dashboard', icon: 'dashboard', end: true },
+  { to: '/app/members', label: 'Members', icon: 'members' },
+  { to: '/app/loans', label: 'Loans', icon: 'loans' },
+  { to: '/app/risk', label: 'Risk', icon: 'risk' },
+  { to: '/app/reports', label: 'Reports', icon: 'reports' },
+];
+
+function Logo({ compact = false }) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-brand font-extrabold text-white">
+        D
+      </span>
+      {!compact && (
+        <span className="leading-tight">
+          <span className="block text-sm font-extrabold tracking-tight">DRL Lending</span>
+          <span className="block text-[11px] font-semibold text-faint">COOPERATIVE</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+export default function AppShell() {
+  const { user, signOut } = useAuth();
+
+  return (
+    <div className="min-h-screen lg:flex">
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-line bg-surface px-3 py-4 lg:flex">
+        <Link to="/app" className="mb-6 px-2">
+          <Logo />
+        </Link>
+
+        <nav className="flex flex-1 flex-col gap-1" aria-label="Main">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition-colors ${
+                  isActive
+                    ? 'bg-brand-soft text-brand'
+                    : 'text-muted hover:bg-[#f2f4f9] hover:text-ink'
+                }`
+              }
+            >
+              <Icon name={item.icon} size={19} />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="mt-2 space-y-1 border-t border-line pt-3">
+          <NavLink
+            to="/app/settings"
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition-colors ${
+                isActive ? 'bg-brand-soft text-brand' : 'text-muted hover:bg-[#f2f4f9] hover:text-ink'
+              }`
+            }
+          >
+            <Icon name="settings" size={19} />
+            Settings
+          </NavLink>
+          <p className="truncate px-3 pt-1 text-xs text-faint" title={user?.email}>
+            {user?.email}
+          </p>
+          <button
+            type="button"
+            onClick={signOut}
+            className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold text-muted transition-colors hover:bg-[#f2f4f9] hover:text-ink"
+          >
+            <Icon name="logout" size={19} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile top bar */}
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-2.5 backdrop-blur lg:hidden">
+        <Link to="/app">
+          <Logo />
+        </Link>
+        <div className="flex items-center gap-1">
+          <NavLink to="/app/settings" className="btn btn-ghost btn-sm" aria-label="Settings">
+            <Icon name="settings" size={19} />
+          </NavLink>
+          <button
+            type="button"
+            onClick={signOut}
+            className="btn btn-ghost btn-sm"
+            aria-label="Sign out"
+          >
+            <Icon name="logout" size={19} />
+          </button>
+        </div>
+      </header>
+
+      <main className="min-w-0 flex-1 pb-24 lg:pb-8">
+        <div className="mx-auto w-full max-w-[1280px] px-4 py-5 sm:px-6 sm:py-7">
+          <Outlet />
+        </div>
+      </main>
+
+      {/* Mobile bottom navigation */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        aria-label="Main"
+      >
+        {NAV.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              `flex min-h-[58px] flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
+                isActive ? 'text-brand' : 'text-faint'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${
+                    isActive ? 'bg-brand-soft' : ''
+                  }`}
+                >
+                  <Icon name={item.icon} size={19} />
+                </span>
+                {item.label}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+    </div>
+  );
+}

@@ -1,0 +1,362 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Bright, card-based, monday.com-flavoured — blue/green/amber
+   as the working palette, deliberately no purple.
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-canvas: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #2b2d36;
+  --color-muted: #676879;
+  --color-faint: #9699a6;
+  --color-line: #e1e4ed;
+
+  --color-brand: #0073ea;
+  --color-brand-dark: #005bb8;
+  --color-brand-soft: #e6f1fe;
+
+  --color-green: #00b874;
+  --color-green-soft: #e1f7ee;
+  --color-red: #e2445c;
+  --color-red-soft: #fdebee;
+  --color-amber: #f0a02a;
+  --color-amber-soft: #fef5e6;
+  --color-teal: #0097ad;
+  --color-teal-soft: #e0f5f8;
+  --color-navy: #1f2b3e;
+
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px rgb(27 31 46 / 0.04), 0 6px 20px rgb(27 31 46 / 0.06);
+  --shadow-pop: 0 10px 40px rgb(27 31 46 / 0.16);
+}
+
+/* Element defaults belong in the base layer: unlayered rules outrank every
+   Tailwind utility regardless of specificity, which would make `text-white` on
+   a heading silently do nothing. */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--color-ink);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Tabular figures everywhere money is shown, so columns line up. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 1.1rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      transform 0.08s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--color-brand);
+    color: #fff;
+    box-shadow: 0 1px 2px rgb(0 91 184 / 0.35);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-brand-dark);
+  }
+
+  .btn-outline {
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    border-color: #c6ccdb;
+    background: #fbfcfe;
+  }
+
+  .btn-success {
+    background: var(--color-green);
+    color: #fff;
+  }
+
+  .btn-success:hover:not(:disabled) {
+    background: #009a61;
+  }
+
+  .btn-danger {
+    background: var(--color-red);
+    color: #fff;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: #c93b51;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-muted);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: #eef0f6;
+    color: var(--color-ink);
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 8px;
+  }
+
+  .input,
+  .select,
+  .textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font: inherit;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    outline: none;
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px var(--color-brand-soft);
+  }
+
+  .textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  .label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .pill-green {
+    background: var(--color-green-soft);
+    color: #027a4d;
+  }
+
+  .pill-red {
+    background: var(--color-red-soft);
+    color: #b32d42;
+  }
+
+  .pill-amber {
+    background: var(--color-amber-soft);
+    color: #99610d;
+  }
+
+  .pill-blue {
+    background: var(--color-brand-soft);
+    color: #005bb8;
+  }
+
+  .pill-teal {
+    background: var(--color-teal-soft);
+    color: #00707f;
+  }
+
+  .pill-grey {
+    background: #eef0f6;
+    color: var(--color-muted);
+  }
+
+  /* Data tables scroll inside their own container on small screens */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.data {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+
+  table.data th {
+    padding: 0.6rem 0.9rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-faint);
+    border-bottom: 1px solid var(--color-line);
+    white-space: nowrap;
+    background: #fbfcfe;
+  }
+
+  table.data td {
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid #eef0f6;
+    vertical-align: middle;
+  }
+
+  table.data tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  table.data tbody tr.clickable {
+    cursor: pointer;
+  }
+
+  table.data tbody tr.clickable:hover {
+    background: #f8fafd;
+  }
+
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: #eceef4;
+    border-radius: 8px;
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.75), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.25s ease both;
+  }
+
+  /* Hide the scrollbar on mobile filter strips without losing scrollability */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
