@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import LoanForm from '../components/LoanForm';
 import MemberForm from '../components/MemberForm';
 import Modal from '../components/Modal';
+import ReliabilityPanel from '../components/ReliabilityPanel';
 import {
   EmptyState,
   ErrorNote,
@@ -73,7 +74,17 @@ export default function MemberDetail() {
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">{m.name}</h1>
           <p className="text-muted">
-            {[m.toda, m.contact_number].filter(Boolean).join(' · ') || 'No contact details yet'}
+            {m.toda}
+            {m.toda && m.contact_number ? ' · ' : ''}
+            {m.contact_number && (
+              <a
+                href={`tel:${String(m.contact_number).replace(/[^\d+]/g, '')}`}
+                className="font-semibold text-brand hover:underline"
+              >
+                {m.contact_number}
+              </a>
+            )}
+            {!m.toda && !m.contact_number && 'No contact details yet'}
           </p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
@@ -171,6 +182,8 @@ export default function MemberDetail() {
         </div>
 
         <div className="space-y-5">
+          <ReliabilityPanel memberId={id} />
+
           <SectionCard title="Profile" bodyClass="px-4 py-2 sm:px-5">
             <dl className="divide-y divide-[#eef0f6]">
               {PROFILE_FIELDS.map(([key, label]) => (

@@ -89,7 +89,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
         </>
       }
     >
-      <form id="payment-form" onSubmit={submit} className="space-y-4">
+      <form id="payment-form" onSubmit={submit} noValidate className="space-y-4">
         {needsPicker && (
           <div>
             <label className="label" htmlFor="pay-loan">

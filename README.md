@@ -14,6 +14,8 @@ Admin system for a daily-collection microlending business, plus a public landing
 | Term | 40 days, daily collection (editable per loan) | Settings page / per loan |
 | Late penalty | One-time 10% of the balance still open after the due date | Settings page |
 | Write-off flag | Loans 90+ days past the due date | Settings page |
+| Gone quiet | No collection for 3+ days puts a loan on the watchlist | Settings page |
+| Exposure ceiling | Optional cap on what one member may owe across all loans | Settings page |
 | Net income | Gross income (interest + penalties collected) − confirmed bad debt | — |
 
 A loan is carried as a running balance, not a fixed day-by-day schedule. A member can pay any
@@ -34,7 +36,8 @@ as income in the first place.
 ### 1. Create the database
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** and run the contents of `supabase/migrations/0001_init.sql`.
+2. Open **SQL Editor** and run each file in `supabase/migrations/` in filename order
+   (`0001_init.sql`, then `0002_…`, then `0003_…`).
 3. Optional: run `supabase/seed.sql` to fill the books with ~150 demo members and their payment
    history, so you can see the dashboard with realistic numbers before entering real data.
 
@@ -88,12 +91,16 @@ payment is a single atomic transaction and the books cannot end up half-written:
 | Function | Purpose |
 | --- | --- |
 | `create_loan` | Creates the loan and its full daily schedule in one transaction |
+| `update_loan` | Corrects the terms or the member a loan was released to, then replays its payments against the new figures. Writes to `loan_audit` |
+| `delete_loan` | Removes a loan outright, refusing once any payment exists. Writes to `loan_audit` |
 | `record_payment` | Applies a collection oldest-day-first and returns the principal/interest split |
 | `update_payment` / `delete_payment` | Edits the record, then replays the loan's whole payment history so no drift accumulates. Both write to `payment_audit` |
 | `apply_due_penalties` | Adds the one-time late penalty to loans past their due date |
 | `flag_write_off_candidates` | Flags long-overdue loans for review |
 | `confirm_write_off` | Records the loss and closes the loan |
 | `dashboard_kpis` / `period_stats` / `income_series` | Aggregate reporting, computed in SQL |
+| `member_reliability` | A member's track record across every loan: completions, average days taken, penalties, longest silence. Drives the re-lend decision |
+| `portfolio_at_risk` | PAR-7 / PAR-30 by value, counted from the last collection rather than days past maturity |
 
 `run_maintenance()` wraps the penalty and flagging passes; the dashboard calls it on load, so no
 scheduler is needed.

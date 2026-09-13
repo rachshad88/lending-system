@@ -8,6 +8,20 @@ const TONES = {
   teal: { bg: 'bg-teal-soft', fg: 'text-teal' },
 };
 
+/** `trend.pct` is a signed number, 'new' (nothing to compare against), or null (no trend to show). */
+function TrendPill({ trend }) {
+  if (!trend || trend.pct === null) return null;
+  if (trend.pct === 'new') return <span className="pill pill-blue">New</span>;
+
+  const isUp = trend.pct >= 0;
+  const isGood = trend.goodDirection === 'up' ? isUp : !isUp;
+  return (
+    <span className={`pill ${isGood ? 'pill-green' : 'pill-red'}`}>
+      {isUp ? '▲' : '▼'} {Math.abs(Math.round(trend.pct))}% vs previous period
+    </span>
+  );
+}
+
 /**
  * Headline figure card. `emphasis` makes the number bigger for the three
  * all-time KPIs so they read as the top of the hierarchy.
@@ -20,6 +34,7 @@ export default function StatCard({
   tone = 'brand',
   emphasis = false,
   loading = false,
+  trend = null,
   footer,
 }) {
   const t = TONES[tone] ?? TONES.brand;
@@ -46,6 +61,7 @@ export default function StatCard({
       )}
 
       {hint && !loading && <p className="text-sm text-muted">{hint}</p>}
+      {!loading && <TrendPill trend={trend} />}
       {footer}
     </article>
   );

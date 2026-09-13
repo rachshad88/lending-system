@@ -15,21 +15,102 @@ import {
   confirmWriteOff,
   dismissWriteOff,
   getSettings,
+  listGoneQuiet,
   listWriteOffs,
   reopenLoan,
   runMaintenance,
 } from '../lib/api';
 import { formatDate, formatDateTime, peso } from '../lib/format';
+import { quietDays, quietTone } from '../lib/risk';
 
 const TABS = [
+  { id: 'slipping', label: 'Slipping' },
   { id: 'flagged', label: 'For review' },
   { id: 'confirmed', label: 'Bad debt' },
   { id: 'dismissed', label: 'Dismissed' },
   { id: 'all', label: 'All' },
 ];
 
+const PILL = { red: 'pill-red', amber: 'pill-amber', muted: 'pill-grey' };
+
+/**
+ * Loans still inside their term that have stopped paying. These are the ones
+ * worth a phone call — by the time a loan reaches the write-off tab the money
+ * has usually been gone for months.
+ */
+function SlippingList({ quietThreshold }) {
+  const list = useAsync(
+    () => listGoneQuiet({ minDays: quietThreshold, limit: 50 }),
+    [quietThreshold]
+  );
+  const rows = list.data ?? [];
+
+  if (list.loading) {
+    return (
+      <div className="p-4">
+        <SkeletonRows rows={4} />
+      </div>
+    );
+  }
+  if (list.error) {
+    return (
+      <div className="p-4">
+        <ErrorNote error={list.error} onRetry={list.reload} />
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon="check"
+        title="Nobody is slipping"
+        hint={`Every active loan has had a collection within the last ${quietThreshold} days.`}
+      />
+    );
+  }
+
+  return rows.map((loan) => {
+    const days = quietDays(loan);
+    return (
+      <div key={loan.loan_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:p-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={`/app/loans/${loan.loan_id}`} className="truncate font-bold hover:text-brand">
+              {loan.member_name}
+            </Link>
+            <span className={`pill ${PILL[quietTone(days, quietThreshold)]}`}>
+              {days} days quiet
+            </span>
+            {loan.is_overdue && <span className="pill pill-red">Past due</span>}
+          </div>
+          <p className="mt-0.5 text-sm text-muted">
+            {loan.last_payment_date
+              ? `Last paid ${formatDate(loan.last_payment_date)}`
+              : `Never paid — released ${formatDate(loan.start_date)}`}
+            {Number(loan.arrears) > 0 && ` · ${peso(loan.arrears)} behind`}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-semibold text-faint">Balance</p>
+          <p className="tnum font-extrabold">{peso(loan.balance)}</p>
+        </div>
+        {loan.contact_number && (
+          <a
+            href={`tel:${String(loan.contact_number).replace(/[^\d+]/g, '')}`}
+            className="btn btn-sm btn-outline"
+            aria-label={`Call ${loan.member_name}`}
+          >
+            <Icon name="members" size={15} />
+            Call
+          </a>
+        )}
+      </div>
+    );
+  });
+}
+
 export default function WriteOffs() {
-  const [tab, setTab] = useState('flagged');
+  const [tab, setTab] = useState('slipping');
   const [action, setAction] = useState(null); // { kind, row }
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,12 +118,14 @@ export default function WriteOffs() {
 
   const settings = useAsync(getSettings, []);
   const list = useAsync(async () => {
+    if (tab === 'slipping') return [];
     await runMaintenance().catch(() => null);
     return listWriteOffs(tab);
   }, [tab]);
 
   const rows = list.data ?? [];
   const threshold = settings.data?.writeoff_threshold_days ?? 90;
+  const quietThreshold = Number(settings.data?.gone_quiet_days) || 3;
 
   const runAction = async () => {
     setBusy(true);
@@ -91,8 +174,10 @@ export default function WriteOffs() {
       <header>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">Risk review</h1>
         <p className="text-muted">
-          Loans more than {threshold} days past their due date are flagged here automatically.
-          Nothing affects net income until you confirm it.
+          <strong>Slipping</strong> catches loans that stopped paying {quietThreshold}+ days ago,
+          while there is still something to recover. Loans more than {threshold} days past their due
+          date are flagged for review automatically, and nothing affects net income until you
+          confirm it.
         </p>
       </header>
 
@@ -115,7 +200,9 @@ export default function WriteOffs() {
       <ErrorNote error={list.error} onRetry={list.reload} />
 
       <SectionCard bodyClass="divide-y divide-[#eef0f6]">
-        {list.loading ? (
+        {tab === 'slipping' ? (
+          <SlippingList quietThreshold={quietThreshold} />
+        ) : list.loading ? (
           <div className="p-4">
             <SkeletonRows rows={4} />
           </div>

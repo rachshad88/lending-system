@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { sanitizeSearch } from './format';
+import { addDays, sanitizeSearch, todayISO } from './format';
 
 function unwrap({ data, error }) {
   if (error) throw new Error(error.message);
@@ -29,6 +29,41 @@ export async function getIncomeSeries(from, to, granularity = 'day') {
 /** Applies overdue penalties and flags write-off candidates. Safe to re-run. */
 export async function runMaintenance() {
   return unwrap(await supabase.rpc('run_maintenance'));
+}
+
+/** Share of money on the street that has gone quiet, by value. */
+export async function getPortfolioAtRisk() {
+  const rows = unwrap(await supabase.rpc('portfolio_at_risk'));
+  return Array.isArray(rows) ? (rows[0] ?? null) : rows;
+}
+
+/** A member's track record across every loan they have ever taken. */
+export async function getMemberReliability(memberId) {
+  const rows = unwrap(await supabase.rpc('member_reliability', { p_member_id: memberId }));
+  return Array.isArray(rows) ? (rows[0] ?? null) : rows;
+}
+
+/**
+ * Live loans with nothing collected for `minDays`, quietest first. Ordering by
+ * last_payment_date ascending is the same ranking as days-since-payment
+ * descending, so the view needs no extra column. A loan that has never paid
+ * sorts first, measured from its release date instead.
+ */
+export async function listGoneQuiet({ minDays = 3, limit = 8 } = {}) {
+  const cutoff = addDays(todayISO(), -minDays);
+  return unwrap(
+    await supabase
+      .from('loan_balances')
+      .select(
+        'loan_id, member_id, member_name, contact_number, toda, balance, daily_due, arrears, ' +
+          'last_payment_date, start_date, maturity_date, is_overdue'
+      )
+      .eq('status', 'active')
+      .gt('balance', 0)
+      .or(`last_payment_date.lte.${cutoff},and(last_payment_date.is.null,start_date.lte.${cutoff})`)
+      .order('last_payment_date', { ascending: true, nullsFirst: true })
+      .limit(limit)
+  );
 }
 
 /* ---------------------------------------------------------------- members */
@@ -108,6 +143,7 @@ export async function listLoans({
   search = '',
   status = 'active',
   view = 'all',
+  sort = 'default',
   page = 1,
   pageSize = 20,
 } = {}) {
@@ -127,20 +163,31 @@ export async function listLoans({
     query = query.or(`member_name.ilike.%${term}%,toda.ilike.%${term}%`);
   }
 
-  query =
-    view === 'arrears' || view === 'overdue'
-      ? query.order('arrears', { ascending: false })
-      : query.order('start_date', { ascending: false });
+  // oldest last payment first is the same ranking as longest silence first,
+  // and a loan that has never paid sorts above every loan that has
+  if (sort === 'quiet') {
+    query = query.order('last_payment_date', { ascending: true, nullsFirst: true });
+  } else if (sort === 'arrears' || view === 'arrears' || view === 'overdue') {
+    query = query.order('arrears', { ascending: false });
+  } else {
+    query = query.order('start_date', { ascending: false });
+  }
 
   const { data, error, count } = await query.range(from, from + pageSize - 1);
   if (error) throw new Error(error.message);
   return { rows: data ?? [], total: count ?? 0 };
 }
 
+/**
+ * The balances view carries no `note`, so it is read from the loans table and
+ * merged in — the edit form prefills from it.
+ */
 export async function getLoan(loanId) {
-  return unwrap(
-    await supabase.from('loan_balances').select(LOAN_FIELDS).eq('loan_id', loanId).single()
-  );
+  const [loan, terms] = await Promise.all([
+    supabase.from('loan_balances').select(LOAN_FIELDS).eq('loan_id', loanId).single(),
+    supabase.from('loans').select('note').eq('id', loanId).single(),
+  ]);
+  return { ...unwrap(loan), note: unwrap(terms).note };
 }
 
 export async function getMemberLoans(memberId) {
@@ -162,6 +209,35 @@ export async function createLoan({ memberId, principal, termDays, startDate, not
       p_start_date: startDate,
       p_note: note || null,
     })
+  );
+}
+
+/** Corrects the agreed terms, then replays the loan's payments against them. */
+export async function updateLoan({ loanId, memberId, principal, termDays, startDate, note }) {
+  return unwrap(
+    await supabase.rpc('update_loan', {
+      p_loan_id: loanId,
+      p_member_id: memberId ?? null,
+      p_principal: principal,
+      p_term_days: termDays,
+      p_start_date: startDate,
+      p_note: note || null,
+    })
+  );
+}
+
+/** Only possible while no payment has been collected against the loan. */
+export async function deleteLoan(loanId, reason) {
+  return unwrap(await supabase.rpc('delete_loan', { p_loan_id: loanId, p_reason: reason || null }));
+}
+
+export async function getLoanAudit(loanId) {
+  return unwrap(
+    await supabase
+      .from('loan_audit')
+      .select('id, loan_id, action, old_values, new_values, changed_at')
+      .eq('loan_id', loanId)
+      .order('changed_at', { ascending: false })
   );
 }
 

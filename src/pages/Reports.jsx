@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PortfolioAtRisk from '../components/PortfolioAtRisk';
 import { ErrorNote, Icon, SectionCard, Spinner } from '../components/ui';
 import { useAsync } from '../lib/useAsync';
 import {
@@ -224,6 +225,8 @@ export default function Reports() {
           figures shown below.
         </p>
       </header>
+
+      <PortfolioAtRisk />
 
       <SectionCard title="1. Pick a report" bodyClass="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
         {REPORTS.map((report) => (

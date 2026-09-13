@@ -5,14 +5,25 @@ import { useAsync } from '../lib/useAsync';
 import { getSettings, listMemberOptions } from '../lib/api';
 import { addDays, formatDate, peso, todayISO } from '../lib/format';
 
-export default function LoanForm({ open, onClose, onSubmit, memberId = null, memberName }) {
+/** Pass `loan` to correct an existing one; leave it out to release a new one. */
+export default function LoanForm({
+  open,
+  onClose,
+  onSubmit,
+  memberId = null,
+  memberName,
+  loan = null,
+}) {
   const { data: settings } = useAsync(getSettings, []);
-  const needsMemberPicker = !memberId;
-  const [pickedMemberId, setPickedMemberId] = useState('');
-  const [principal, setPrincipal] = useState('');
-  const [term, setTerm] = useState('');
-  const [startDate, setStartDate] = useState(todayISO());
-  const [note, setNote] = useState('');
+  const editing = Boolean(loan);
+  // While editing, the picker is always offered — reassigning a loan released
+  // against the wrong member is the main reason to open this form again.
+  const needsMemberPicker = editing || !memberId;
+  const [pickedMemberId, setPickedMemberId] = useState(loan?.member_id ?? '');
+  const [principal, setPrincipal] = useState(loan ? String(loan.principal) : '');
+  const [term, setTerm] = useState(loan ? String(loan.term_days) : '');
+  const [startDate, setStartDate] = useState(loan?.start_date ?? todayISO());
+  const [note, setNote] = useState(loan?.note ?? '');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,7 +35,8 @@ export default function LoanForm({ open, onClose, onSubmit, memberId = null, mem
   const members = memberOptions ?? [];
   const pickedMember = members.find((m) => m.id === pickedMemberId);
 
-  const rate = Number(settings?.interest_rate ?? 20);
+  // An existing loan keeps the rate it was written at, whatever Settings says now.
+  const rate = editing ? Number(loan.interest_rate) : Number(settings?.interest_rate ?? 20);
   const penaltyRate = Number(settings?.penalty_rate ?? 10);
   const effectiveTerm = Number(term) || Number(settings?.default_term_days ?? 40);
 
@@ -75,8 +87,10 @@ export default function LoanForm({ open, onClose, onSubmit, memberId = null, mem
     <Modal
       open={open}
       onClose={onClose}
-      title="Release a new loan"
-      subtitle={memberName ? `For ${memberName}` : pickedMember ? `For ${pickedMember.name}` : undefined}
+      title={editing ? 'Correct this loan' : 'Release a new loan'}
+      subtitle={
+        memberName ? `For ${memberName}` : pickedMember ? `For ${pickedMember.name}` : undefined
+      }
       size="lg"
       footer={
         <>
@@ -84,12 +98,25 @@ export default function LoanForm({ open, onClose, onSubmit, memberId = null, mem
             Cancel
           </button>
           <button type="submit" form="loan-form" className="btn btn-primary" disabled={busy}>
-            {busy ? <Spinner size={18} label="Saving" /> : 'Release loan'}
+            {busy ? (
+              <Spinner size={18} label="Saving" />
+            ) : editing ? (
+              'Save changes'
+            ) : (
+              'Release loan'
+            )}
           </button>
         </>
       }
     >
-      <form id="loan-form" onSubmit={submit} className="space-y-4">
+      <form id="loan-form" onSubmit={submit} noValidate className="space-y-4">
+        {editing && Number(loan.payments_count) > 0 && (
+          <p className="rounded-xl bg-amber-soft px-4 py-3 text-sm">
+            {loan.payments_count} payment(s) already collected on this loan. Changing the terms
+            re-splits every one of them between principal and interest.
+          </p>
+        )}
+
         {needsMemberPicker && (
           <div>
             <label className="label" htmlFor="lf-member">

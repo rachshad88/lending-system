@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import GoneQuiet from '../components/GoneQuiet';
 import PaymentDialog from '../components/PaymentDialog';
 import StatCard from '../components/StatCard';
 import { ErrorNote, Icon, SectionCard, Spinner } from '../components/ui';
@@ -36,6 +37,22 @@ function buildRange(preset, today) {
   if (preset === 'day') return { from: today, to: today, label: 'Today' };
   if (preset === 'week') return { from: startOfWeek(today), to: today, label: 'This week' };
   return { from: startOfMonth(today), to: today, label: 'This month' };
+}
+
+/** The N days immediately before `range`, same length, for period-over-period comparison. */
+function previousRange(range) {
+  const lengthDays = Math.round((new Date(range.to) - new Date(range.from)) / 86400000) + 1;
+  const to = addDays(range.from, -1);
+  const from = addDays(to, -(lengthDays - 1));
+  return { from, to };
+}
+
+/** Percent change, or 'new' when there was nothing to compare against. */
+function pctChange(current, previous) {
+  const c = Number(current ?? 0);
+  const p = Number(previous ?? 0);
+  if (p === 0) return c > 0 ? 'new' : null;
+  return ((c - p) / p) * 100;
 }
 
 const PRESETS = [
@@ -109,6 +126,12 @@ export default function Dashboard() {
 
   const period = useAsync(() => getPeriodStats(range.from, range.to), [range.from, range.to]);
 
+  const prevRange = useMemo(() => previousRange(range), [range.from, range.to]);
+  const previousPeriod = useAsync(
+    () => getPeriodStats(prevRange.from, prevRange.to),
+    [prevRange.from, prevRange.to]
+  );
+
   const chartRange = useMemo(
     () =>
       granularity === 'day'
@@ -124,6 +147,12 @@ export default function Dashboard() {
 
   const k = kpis.data ?? {};
   const p = period.data ?? {};
+  const pp = previousPeriod.data ?? {};
+  const kpisUnavailable = kpis.loading || !!kpis.error;
+  const periodUnavailable = period.loading || !!period.error;
+  const trendUnavailable = periodUnavailable || previousPeriod.loading || !!previousPeriod.error;
+  const trend = (current, previous, goodDirection = 'up') =>
+    trendUnavailable ? undefined : { pct: pctChange(current, previous), goodDirection };
 
   const collectionRate =
     k.expected_today > 0 ? Math.round((k.paid_today / k.expected_today) * 100) : null;
@@ -187,6 +216,8 @@ export default function Dashboard() {
         </div>
       )}
 
+      <GoneQuiet />
+
       {/* All-time headline figures */}
       <section aria-label="All-time figures">
         <div className="mb-3 flex items-center gap-2">
@@ -201,7 +232,7 @@ export default function Dashboard() {
             icon="wallet"
             tone="brand"
             emphasis
-            loading={kpis.loading}
+            loading={kpisUnavailable}
           />
           <StatCard
             label="Gross income"
@@ -210,7 +241,7 @@ export default function Dashboard() {
             icon="trendUp"
             tone="green"
             emphasis
-            loading={kpis.loading}
+            loading={kpisUnavailable}
           />
           <StatCard
             label="Net income"
@@ -223,7 +254,7 @@ export default function Dashboard() {
             icon="peso"
             tone={k.net_income < 0 ? 'red' : 'teal'}
             emphasis
-            loading={kpis.loading}
+            loading={kpisUnavailable}
           />
         </div>
       </section>
@@ -236,24 +267,24 @@ export default function Dashboard() {
       >
         <MiniStat
           label="Expected today"
-          value={kpis.loading ? '—' : fmtCount(k.expected_today)}
+          value={kpisUnavailable ? '—' : fmtCount(k.expected_today)}
           sub="Active loans with a balance"
         />
         <MiniStat
           label="Paid"
-          value={kpis.loading ? '—' : fmtCount(k.paid_today)}
+          value={kpisUnavailable ? '—' : fmtCount(k.paid_today)}
           sub={collectionRate === null ? null : `${collectionRate}% of expected`}
           tone="green"
         />
         <MiniStat
           label="Not yet paid"
-          value={kpis.loading ? '—' : fmtCount(k.unpaid_today)}
+          value={kpisUnavailable ? '—' : fmtCount(k.unpaid_today)}
           sub={k.unpaid_today > 0 ? 'Needs follow-up' : 'All collected'}
           tone={k.unpaid_today > 0 ? 'red' : 'green'}
         />
         <MiniStat
           label="Collected today"
-          value={kpis.loading ? '—' : peso(k.collected_today)}
+          value={kpisUnavailable ? '—' : peso(k.collected_today)}
           sub={`${peso(k.income_today)} of it is income`}
           tone="brand"
         />
@@ -286,7 +317,8 @@ export default function Dashboard() {
             hint={`${fmtCount(p.payments_count)} payment(s) from ${fmtCount(p.members_paid)} member(s)`}
             icon="peso"
             tone="green"
-            loading={period.loading}
+            loading={periodUnavailable}
+            trend={trend(p.collected, pp.collected, 'up')}
           />
           <StatCard
             label="Not paid"
@@ -298,7 +330,8 @@ export default function Dashboard() {
             }
             icon="risk"
             tone={p.unpaid > 0 ? 'red' : 'green'}
-            loading={period.loading}
+            loading={periodUnavailable}
+            trend={trend(p.unpaid, pp.unpaid, 'down')}
           />
           <StatCard
             label="Income earned"
@@ -306,7 +339,8 @@ export default function Dashboard() {
             hint={`${peso(p.principal_collected)} of principal recovered`}
             icon="trendUp"
             tone="teal"
-            loading={period.loading}
+            loading={periodUnavailable}
+            trend={trend(p.income, pp.income, 'up')}
           />
           <StatCard
             label="New loans"
@@ -314,7 +348,8 @@ export default function Dashboard() {
             hint={`${peso(p.new_loans_principal)} released`}
             icon="loans"
             tone="brand"
-            loading={period.loading}
+            loading={periodUnavailable}
+            trend={trend(p.new_loans, pp.new_loans, 'up')}
           />
           <StatCard
             label="Finished loans"
@@ -322,7 +357,8 @@ export default function Dashboard() {
             hint="Fully paid in this period"
             icon="check"
             tone="green"
-            loading={period.loading}
+            loading={periodUnavailable}
+            trend={trend(p.finished_loans, pp.finished_loans, 'up')}
           />
           <StatCard
             label="New members"
@@ -334,7 +370,8 @@ export default function Dashboard() {
             }
             icon="members"
             tone="amber"
-            loading={period.loading}
+            loading={periodUnavailable}
+            trend={trend(p.new_members, pp.new_members, 'up')}
           />
         </div>
       </section>
@@ -359,7 +396,7 @@ export default function Dashboard() {
         <ErrorNote error={series.error} onRetry={series.reload} />
         {series.loading ? (
           <div className="skeleton h-[280px]" />
-        ) : (
+        ) : series.error ? null : (
           <Suspense
             fallback={
               <div className="grid h-[280px] place-items-center">
@@ -376,25 +413,25 @@ export default function Dashboard() {
       <SectionCard title="Loan book" bodyClass="grid sm:grid-cols-4">
         <MiniStat
           label="Active loans"
-          value={kpis.loading ? '—' : fmtCount(k.active_loans)}
+          value={kpisUnavailable ? '—' : fmtCount(k.active_loans)}
           sub={`${peso(k.balance_outstanding)} still to collect`}
           tone="brand"
         />
         <MiniStat
           label="Behind schedule"
-          value={kpis.loading ? '—' : peso(k.total_arrears)}
+          value={kpisUnavailable ? '—' : peso(k.total_arrears)}
           sub="Total arrears across active loans"
           tone={k.total_arrears > 0 ? 'amber' : 'green'}
         />
         <MiniStat
           label="Fully paid"
-          value={kpis.loading ? '—' : fmtCount(k.completed_loans)}
+          value={kpisUnavailable ? '—' : fmtCount(k.completed_loans)}
           sub="Closed loans, all time"
           tone="green"
         />
         <MiniStat
           label="Written off"
-          value={kpis.loading ? '—' : fmtCount(k.written_off_loans)}
+          value={kpisUnavailable ? '—' : fmtCount(k.written_off_loans)}
           sub={`${peso(k.writeoff_principal_loss)} principal lost`}
           tone={k.written_off_loans > 0 ? 'red' : 'ink'}
         />

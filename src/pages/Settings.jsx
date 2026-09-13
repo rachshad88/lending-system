@@ -42,6 +42,25 @@ const FIELDS = [
     step: 1,
     hint: 'How long a loan can sit unpaid past its due date before it shows up in Risk review.',
   },
+  {
+    name: 'gone_quiet_days',
+    label: 'Treat as gone quiet after',
+    suffix: 'days with no collection',
+    min: 1,
+    max: 365,
+    step: 1,
+    hint: 'Drives the dashboard watchlist and the Slipping tab in Risk review. Lower catches problems sooner but lists more people.',
+  },
+  {
+    name: 'max_exposure_per_member',
+    label: 'Most one member may owe',
+    suffix: '₱ across all their loans',
+    min: 0,
+    max: 10000000,
+    step: 500,
+    optional: true,
+    hint: 'Caps the ceiling suggested on a member’s track record. Leave blank for no limit.',
+  },
 ];
 
 export default function Settings() {
@@ -76,6 +95,19 @@ export default function Settings() {
         default_term_days: Number(values.default_term_days),
         writeoff_threshold_days: Number(values.writeoff_threshold_days),
       };
+
+      // the risk-signal columns only exist once 0004 has been run; writing them
+      // before that would break saving the settings that do exist
+      if ('gone_quiet_days' in values) {
+        patch.gone_quiet_days = Number(values.gone_quiet_days) || 3;
+      }
+      if ('max_exposure_per_member' in values) {
+        // blank means no ceiling at all, which is not the same as zero
+        patch.max_exposure_per_member =
+          String(values.max_exposure_per_member ?? '').trim() === ''
+            ? null
+            : Number(values.max_exposure_per_member);
+      }
       const updated = await updateSettings(patch);
       setValues(updated);
       setSaved(true);
@@ -95,7 +127,7 @@ export default function Settings() {
 
       <form onSubmit={save} className="space-y-5">
         <SectionCard title="Business rules" bodyClass="divide-y divide-[#eef0f6]">
-          {FIELDS.map((field) => (
+          {FIELDS.filter((field) => field.name in values).map((field) => (
             <div
               key={field.name}
               className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5"
@@ -114,7 +146,8 @@ export default function Settings() {
                   value={values[field.name] ?? ''}
                   onChange={setField(field.name)}
                   aria-label={field.label}
-                  required
+                  placeholder={field.optional ? 'none' : undefined}
+                  required={!field.optional}
                 />
                 <span className="text-sm text-muted">{field.suffix}</span>
               </div>

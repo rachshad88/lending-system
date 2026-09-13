@@ -65,6 +65,7 @@ export default function Login() {
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -73,6 +74,10 @@ export default function Login() {
   const onSubmit = async (event) => {
     event.preventDefault();
     setError(null);
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
     setBusy(true);
     try {
       await signIn(email.trim(), password);
@@ -132,7 +137,7 @@ export default function Login() {
       </div>
 
       {/* Form */}
-      <div className="grid min-h-screen place-items-center bg-canvas px-4 py-10 lg:min-h-0">
+      <div className="grid min-h-screen items-start justify-items-center bg-canvas px-4 pb-10 pt-16 lg:min-h-0 lg:items-center lg:pt-10">
         <div className="w-full max-w-sm">
           <Link to="/" className="mb-8 inline-flex items-center gap-2.5 lg:hidden">
             <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-11 w-11" />
@@ -154,7 +159,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
             <div>
               <label className="label" htmlFor="email">
                 Email
@@ -164,6 +169,7 @@ export default function Login() {
                 className="input"
                 type="email"
                 autoComplete="username"
+                autoFocus
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -175,16 +181,26 @@ export default function Login() {
               <label className="label" htmlFor="password">
                 Password
               </label>
-              <input
-                id="password"
-                className="input"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  className="input pr-11"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute inset-y-0 right-0 grid w-11 place-items-center text-faint transition-colors hover:text-muted"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                </button>
+              </div>
             </div>
 
             {error && (

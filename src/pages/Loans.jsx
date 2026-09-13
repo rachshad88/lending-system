@@ -4,10 +4,29 @@ import LoanForm from '../components/LoanForm';
 import Pagination from '../components/Pagination';
 import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows, StatusPill } from '../components/ui';
 import { useAsync, useDebounced } from '../lib/useAsync';
-import { createLoan, listLoans } from '../lib/api';
+import { createLoan, getSettings, listLoans } from '../lib/api';
 import { formatDate, peso } from '../lib/format';
+import { quietDays, quietTone } from '../lib/risk';
 
 const PAGE_SIZE = 20;
+
+const SORTS = [
+  { id: 'default', label: 'Newest' },
+  { id: 'quiet', label: 'Longest silent' },
+];
+
+const QUIET_TEXT = { red: 'text-red font-bold', amber: 'text-amber font-semibold', muted: 'text-muted' };
+
+/** Days with nothing collected — the earliest sign a loan is going wrong. */
+function QuietCell({ loan, threshold }) {
+  const days = quietDays(loan);
+  return (
+    <span className={QUIET_TEXT[quietTone(days, threshold)]}>
+      {days}d
+      {!loan.last_payment_date && <span className="block text-xs font-normal">never paid</span>}
+    </span>
+  );
+}
 
 const VIEWS = [
   { id: 'active', label: 'Active', status: 'active', view: 'all' },
@@ -36,6 +55,7 @@ function ProgressBar({ value, tone = 'bg-brand' }) {
 export default function Loans() {
   const navigate = useNavigate();
   const [viewId, setViewId] = useState('active');
+  const [sort, setSort] = useState('default');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
@@ -43,16 +63,20 @@ export default function Loans() {
 
   const active = VIEWS.find((v) => v.id === viewId) ?? VIEWS[0];
 
+  const settings = useAsync(getSettings, []);
+  const quietThreshold = Number(settings.data?.gone_quiet_days) || 3;
+
   const { data, error, loading, reload } = useAsync(
     () =>
       listLoans({
         search: debouncedSearch,
         status: active.status,
         view: active.view,
+        sort,
         page,
         pageSize: PAGE_SIZE,
       }),
-    [debouncedSearch, active.status, active.view, page]
+    [debouncedSearch, active.status, active.view, sort, page]
   );
 
   const rows = data?.rows ?? [];
@@ -106,6 +130,26 @@ export default function Loans() {
         />
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-muted">Sort</span>
+        {SORTS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => {
+              setSort(option.id);
+              setPage(1);
+            }}
+            className={`pill min-h-[34px] px-3 transition-colors ${
+              sort === option.id ? 'pill-blue' : 'pill-grey hover:bg-[#e6e9f1]'
+            }`}
+            aria-pressed={sort === option.id}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       <ErrorNote error={error} onRetry={reload} />
 
       <SectionCard>
@@ -148,6 +192,12 @@ export default function Loans() {
                         <p className="tnum font-extrabold">{peso(loan.balance)}</p>
                       </div>
                       <div className="text-right">
+                        <p className="text-xs font-semibold text-faint">Quiet</p>
+                        <p className="tnum font-bold">
+                          <QuietCell loan={loan} threshold={quietThreshold} />
+                        </p>
+                      </div>
+                      <div className="text-right">
                         <p className="text-xs font-semibold text-faint">Daily due</p>
                         <p className="tnum font-bold text-brand">{peso(loan.daily_due)}</p>
                       </div>
@@ -174,6 +224,9 @@ export default function Loans() {
                     <th className="num">Paid</th>
                     <th className="num">Balance</th>
                     <th className="num">Behind</th>
+                    <th className="num" title="Days since the last collection">
+                      Quiet
+                    </th>
                     <th>Progress</th>
                     <th>Status</th>
                     <th aria-label="Open" />
@@ -200,6 +253,9 @@ export default function Loans() {
                         ) : (
                           <span className="text-faint">—</span>
                         )}
+                      </td>
+                      <td className="num tnum">
+                        <QuietCell loan={loan} threshold={quietThreshold} />
                       </td>
                       <td className="w-28">
                         <ProgressBar
