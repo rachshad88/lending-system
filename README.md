@@ -37,7 +37,7 @@ as income in the first place.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor** and run each file in `supabase/migrations/` in filename order
-   (`0001_init.sql`, then `0002_…`, then `0003_…`).
+   (`0001_init.sql` through `0005_login_lockout.sql`).
 3. Optional: run `supabase/seed.sql` to fill the books with ~150 demo members and their payment
    history, so you can see the dashboard with realistic numbers before entering real data.
 
@@ -55,6 +55,10 @@ as income in the first place.
 
 Nothing in the database is readable until a user id is in `admin_users` — row level security checks
 it on every table, so even a leaked anon key returns nothing.
+
+4. Deploy the sign-in function (`supabase functions deploy admin-auth --no-verify-jwt`). The login
+   form checks passwords through it, and it pauses sign-in after five wrong tries — see
+   [Sign-in lockout](#sign-in-lockout).
 
 ### 3. Point the app at your project
 
@@ -82,6 +86,47 @@ Open http://localhost:5173. Restart the dev server after editing `.env.local`.
 - Update the office address, hours and loan range in the contact section of `src/pages/Landing.jsx`.
 - `npm run build` produces `dist/`, deployable to any static host (Vercel, Netlify, Cloudflare
   Pages). Configure the host to serve `index.html` for unknown paths so client-side routes work.
+
+## Sign-in lockout
+
+The admin password is not checked by Supabase Auth directly — anyone holding the public key could
+otherwise script guesses against it forever. Instead:
+
+- `supabase/functions/admin-auth` receives the sign-in, and `verify_admin_login()` checks it against
+  `admin_credentials` in the same row-locked transaction as the failure counter.
+- Supabase Auth's own copy of the password is random bytes. Migration 0005 moved the real hash across,
+  and a trigger does the same for anyone added to `admin_users` later, so guessing against Auth
+  directly can never succeed.
+- Five wrong passwords in a row pause sign-in for **15 minutes**, the next five for **1 hour**, then
+  **24 hours** each time. A successful sign-in, or a full quiet day, resets it.
+- Every attempt (time, result, IP) is kept for 90 days and shown under **Settings → Sign-in security**.
+
+Deploy the function once with the Supabase CLI:
+
+```bash
+supabase functions deploy admin-auth --no-verify-jwt
+```
+
+When the app is hosted anywhere other than `http://localhost:5173`, add that address under **Edge
+Functions → Secrets** as `ALLOWED_ORIGINS` (comma-separated, e.g. `https://drl.example.com`).
+
+Paused yourself by mistake? It reopens on its own, or straight away with:
+
+```sql
+delete from login_throttle where email = 'you@example.com';
+```
+
+Forgot the password? Set a new one from the SQL Editor:
+
+```sql
+select set_admin_password(
+  (select id from auth.users where email = 'you@example.com'),
+  'a-new-long-password'
+);
+```
+
+Do **not** use "Send password recovery" in the Supabase dashboard for the admin account. It writes a
+real password back into Supabase Auth and reopens the path this lockout closes.
 
 ## How the money logic is organised
 

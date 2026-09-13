@@ -1,7 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon, Spinner } from '../components/ui';
+
+function formatDuration(seconds) {
+  if (seconds >= 3600 && seconds % 3600 === 0) {
+    const hours = seconds / 3600;
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
+function formatCountdown(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
 
 function SetupNotice() {
   return (
@@ -68,11 +86,28 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= lockedUntil) setLockedUntil(null);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockedUntil]);
 
   if (session) return <Navigate to={location.state?.from ?? '/app'} replace />;
 
+  // The countdown only keeps the button honest; the server refuses every
+  // attempt during a lock no matter what this page does.
+  const locked = lockedUntil !== null && now < lockedUntil;
+
   const onSubmit = async (event) => {
     event.preventDefault();
+    if (locked) return;
     setError(null);
     if (!email.trim() || !password) {
       setError('Please enter your email and password.');
@@ -82,11 +117,27 @@ export default function Login() {
     try {
       await signIn(email.trim(), password);
     } catch (err) {
-      setError(
-        err.message?.includes('Invalid login credentials')
-          ? 'That email and password combination does not match an account.'
-          : err.message
-      );
+      if (err.code === 'locked') {
+        const start = Date.now();
+        setNow(start);
+        setLockedUntil(start + (err.retryAfterSeconds ?? 900) * 1000);
+        setPassword('');
+      } else if (err.code === 'invalid_credentials') {
+        const left = err.attemptsLeft;
+        setError(
+          `That email and password combination does not match an account.${
+            left
+              ? ` ${left} ${left === 1 ? 'attempt' : 'attempts'} left before sign-in is paused for ${formatDuration(
+                  err.nextLockSeconds ?? 900
+                )}.`
+              : ''
+          }`
+        );
+      } else if (err.code === 'bad_request') {
+        setError('Please enter your email and password.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -159,6 +210,19 @@ export default function Login() {
             </div>
           )}
 
+          {locked && (
+            <div
+              role="alert"
+              className="mt-5 flex items-start gap-2.5 rounded-xl border border-amber/40 bg-amber-soft px-4 py-3 text-sm"
+            >
+              <Icon name="clock" size={17} className="mt-0.5 shrink-0 text-amber" />
+              <span>
+                Too many failed attempts, so sign-in is paused for this account. Try again in{' '}
+                <span className="tnum font-semibold">{formatCountdown(lockedUntil - now)}</span>.
+              </span>
+            </div>
+          )}
+
           <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
             <div>
               <label className="label" htmlFor="email">
@@ -172,7 +236,10 @@ export default function Login() {
                 autoFocus
                 required
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setLockedUntil(null);
+                }}
                 placeholder="you@example.com"
               />
             </div>
@@ -209,7 +276,7 @@ export default function Login() {
               </p>
             )}
 
-            <button type="submit" className="btn btn-primary w-full" disabled={busy}>
+            <button type="submit" className="btn btn-primary w-full" disabled={busy || locked}>
               {busy ? <Spinner size={18} label="Signing in" /> : 'Sign in'}
             </button>
           </form>

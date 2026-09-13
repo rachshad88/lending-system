@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ErrorNote, Icon, PageLoader, SectionCard, Spinner } from '../components/ui';
+import SignInSecurity from '../components/SignInSecurity';
 import { useAuth } from '../context/AuthContext';
 import { useAsync } from '../lib/useAsync';
 import { getSettings, updateSettings } from '../lib/api';
@@ -321,6 +322,8 @@ export default function Settings() {
           Sign out
         </button>
       </SectionCard>
+
+      <SignInSecurity />
     </div>
   );
 }

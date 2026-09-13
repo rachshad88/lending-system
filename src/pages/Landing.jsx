@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { peso, pesoWhole } from '../lib/format';
@@ -212,6 +212,76 @@ const CONTENT = {
   },
 };
 
+/** Reveals its children with a fade-up the first time they scroll into view. */
+function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <Tag
+      ref={ref}
+      className={`reveal ${visible ? 'reveal-visible' : ''} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/** Slow-drifting soft-color blobs behind the hero. Purely decorative. */
+function HeroBlobs() {
+  return (
+    <>
+      <span
+        className="blob"
+        style={{ top: '-6%', left: '8%', width: 260, height: 260, background: '#0073ea', opacity: 0.14 }}
+      />
+      <span
+        className="blob"
+        style={{
+          top: '10%',
+          right: '4%',
+          width: 220,
+          height: 220,
+          background: '#00b874',
+          opacity: 0.14,
+          animationDelay: '-3s',
+          animationDuration: '13s',
+        }}
+      />
+      <span
+        className="blob"
+        style={{
+          bottom: '-10%',
+          left: '42%',
+          width: 240,
+          height: 240,
+          background: '#f0a02a',
+          opacity: 0.12,
+          animationDelay: '-6s',
+          animationDuration: '15s',
+        }}
+      />
+    </>
+  );
+}
+
 function Calculator({ t }) {
   const [amount, setAmount] = useState(5000);
   const [term, setTerm] = useState(DEFAULT_TERM);
@@ -278,15 +348,21 @@ function Calculator({ t }) {
       <dl className="grid gap-3 rounded-xl bg-canvas p-4 sm:grid-cols-3">
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-faint">{t.payDaily}</dt>
-          <dd className="tnum text-xl font-extrabold text-green">{peso(figures.daily)}</dd>
+          <dd key={`daily-${figures.daily}`} className="tnum pop text-xl font-extrabold text-green">
+            {peso(figures.daily)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-faint">{t.interest}</dt>
-          <dd className="tnum text-xl font-extrabold">{peso(figures.interest)}</dd>
+          <dd key={`interest-${figures.interest}`} className="tnum pop text-xl font-extrabold">
+            {peso(figures.interest)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-faint">{t.totalPayable}</dt>
-          <dd className="tnum text-xl font-extrabold">{peso(figures.total)}</dd>
+          <dd key={`total-${figures.total}`} className="tnum pop text-xl font-extrabold">
+            {peso(figures.total)}
+          </dd>
         </div>
       </dl>
 
@@ -316,16 +392,16 @@ export default function Landing() {
           </a>
 
           <nav className="hidden items-center gap-7 text-sm font-semibold text-muted md:flex">
-            <a href="#how" className="transition-colors hover:text-ink">
+            <a href="#how" className="nav-link transition-colors hover:text-ink">
               {t.nav.how}
             </a>
-            <a href="#rates" className="transition-colors hover:text-ink">
+            <a href="#rates" className="nav-link transition-colors hover:text-ink">
               {t.nav.rates}
             </a>
-            <a href="#requirements" className="transition-colors hover:text-ink">
+            <a href="#requirements" className="nav-link transition-colors hover:text-ink">
               {t.nav.requirements}
             </a>
-            <a href="#contact" className="transition-colors hover:text-ink">
+            <a href="#contact" className="nav-link transition-colors hover:text-ink">
               {t.nav.contact}
             </a>
           </nav>
@@ -357,34 +433,51 @@ export default function Landing() {
             'radial-gradient(700px 380px at 60% 100%, #fef5e6 0%, transparent 60%)',
         }}
       >
-        <div className="mx-auto grid max-w-[1180px] items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+        <HeroBlobs />
+        <div className="relative mx-auto grid max-w-[1180px] items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div>
-            <span className="pill pill-green mb-5">
+            <span className="hero-in pill pill-green mb-5">
               <Icon name="check" size={13} />
               {t.hero.badge}
             </span>
 
-            <h1 className="text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold leading-[1.05] tracking-[-0.03em]">
+            <h1
+              className="hero-in text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold leading-[1.05] tracking-[-0.03em]"
+              style={{ animationDelay: '80ms' }}
+            >
               {t.hero.titleLine1}
               <br />
               <span className="text-brand">{t.hero.titleLine2}</span>
             </h1>
 
-            <p className="mt-5 text-base font-semibold italic text-brand">{HERO_TAGLINE}</p>
+            <p
+              className="hero-in mt-5 text-base font-semibold italic text-brand"
+              style={{ animationDelay: '160ms' }}
+            >
+              {HERO_TAGLINE}
+            </p>
 
-            <p className="mt-2 max-w-xl text-lg leading-relaxed text-muted">{t.hero.subhead}</p>
+            <p
+              className="hero-in mt-2 max-w-xl text-lg leading-relaxed text-muted"
+              style={{ animationDelay: '220ms' }}
+            >
+              {t.hero.subhead}
+            </p>
 
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a href="#contact" className="btn btn-primary">
+            <div className="hero-in mt-7 flex flex-wrap gap-3" style={{ animationDelay: '300ms' }}>
+              <a href="#contact" className="btn btn-primary group">
                 {t.hero.ctaPrimary}
-                <Icon name="chevronRight" size={17} />
+                <Icon name="chevronRight" size={17} className="transition-transform group-hover:translate-x-1" />
               </a>
               <a href="#how" className="btn btn-outline">
                 {t.hero.ctaSecondary}
               </a>
             </div>
 
-            <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-line/80 pt-6">
+            <dl
+              className="hero-in mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-line/80 pt-6"
+              style={{ animationDelay: '380ms' }}
+            >
               {t.hero.stats.map((item) => (
                 <div key={item.label}>
                   <dt className="text-xl font-extrabold tracking-tight sm:text-2xl">
@@ -396,23 +489,25 @@ export default function Landing() {
             </dl>
           </div>
 
-          <Calculator t={t.calculator} />
+          <div className="hero-in" style={{ animationDelay: '200ms' }}>
+            <Calculator t={t.calculator} />
+          </div>
         </div>
       </section>
 
       {/* How it works */}
       <section id="how" className="mx-auto max-w-[1180px] px-4 py-14 sm:px-6 sm:py-20">
-        <div className="mb-10 max-w-2xl">
+        <Reveal className="mb-10 max-w-2xl">
           <span className="pill pill-blue mb-3">{t.how.pill}</span>
           <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-extrabold leading-tight tracking-[-0.025em]">
             {t.how.heading}
           </h2>
           <p className="mt-3 text-lg text-muted">{t.how.body}</p>
-        </div>
+        </Reveal>
 
         <ol className="grid gap-5 md:grid-cols-3">
           {t.steps.map((step, index) => (
-            <li key={step.title} className="card p-6">
+            <Reveal key={step.title} as="li" delay={index * 100} className="card lift p-6">
               <div className="mb-4 flex items-center justify-between">
                 <span
                   className={`grid h-11 w-11 place-items-center rounded-xl ${TONE_CLASSES[STEP_META[index].tone]}`}
@@ -423,7 +518,7 @@ export default function Landing() {
               </div>
               <h3 className="text-lg font-bold">{step.title}</h3>
               <p className="mt-2 text-muted">{step.body}</p>
-            </li>
+            </Reveal>
           ))}
         </ol>
       </section>
@@ -431,15 +526,15 @@ export default function Landing() {
       {/* Rates */}
       <section id="rates" className="border-y border-line bg-canvas">
         <div className="mx-auto max-w-[1180px] px-4 py-14 sm:px-6 sm:py-20">
-          <div className="mb-8 max-w-2xl">
+          <Reveal className="mb-8 max-w-2xl">
             <span className="pill pill-amber mb-3">{t.rates.pill}</span>
             <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-extrabold leading-tight tracking-[-0.025em]">
               {t.rates.heading}
             </h2>
             <p className="mt-3 text-lg text-muted">{t.rates.body}</p>
-          </div>
+          </Reveal>
 
-          <div className="card overflow-hidden">
+          <Reveal delay={100} className="card overflow-hidden">
             <div className="table-wrap">
               <table className="data">
                 <thead>
@@ -455,7 +550,7 @@ export default function Landing() {
                     const interest = principal * INTEREST_RATE;
                     const total = principal + interest;
                     return (
-                      <tr key={principal}>
+                      <tr key={principal} className="transition-colors hover:bg-[#f8fafd]">
                         <td className="font-bold">{pesoWhole(principal)}</td>
                         <td className="num tnum text-muted">{pesoWhole(interest)}</td>
                         <td className="num tnum font-semibold">{pesoWhole(total)}</td>
@@ -466,7 +561,7 @@ export default function Landing() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Reveal>
 
           <p className="mt-4 flex items-start gap-2 text-sm text-muted">
             <Icon name="risk" size={16} className="mt-0.5 shrink-0 text-amber" />
@@ -478,22 +573,22 @@ export default function Landing() {
       {/* Requirements */}
       <section id="requirements" className="mx-auto max-w-[1180px] px-4 py-14 sm:px-6 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div>
+          <Reveal>
             <span className="pill pill-teal mb-3">{t.requirements.pill}</span>
             <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-extrabold leading-tight tracking-[-0.025em]">
               {t.requirements.heading}
             </h2>
             <p className="mt-3 text-lg text-muted">{t.requirements.body}</p>
-          </div>
+          </Reveal>
 
           <ul className="grid gap-3 sm:grid-cols-2">
-            {t.requirements.items.map((item) => (
-              <li key={item} className="card flex items-center gap-3 p-4">
+            {t.requirements.items.map((item, index) => (
+              <Reveal key={item} as="li" delay={index * 60} className="card lift flex items-center gap-3 p-4">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green-soft text-green">
                   <Icon name="check" size={15} strokeWidth={2.6} />
                 </span>
                 <span className="font-semibold">{item}</span>
-              </li>
+              </Reveal>
             ))}
           </ul>
         </div>
@@ -502,18 +597,22 @@ export default function Landing() {
       {/* Contact */}
       <section id="contact" className="border-t border-line bg-navy text-white">
         <div className="mx-auto grid max-w-[1180px] gap-8 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center">
-          <div>
+          <Reveal>
             <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-extrabold leading-tight tracking-[-0.025em] text-white">
               {t.contact.heading}
             </h2>
             <p className="mt-4 max-w-lg text-lg text-white/70">{t.contact.body}</p>
-          </div>
+          </Reveal>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {CONTACT_META.map((meta) => {
+            {CONTACT_META.map((meta, index) => {
               const item = t.contact[meta.key];
               return (
-                <div key={meta.key} className="rounded-xl border border-white/15 bg-white/5 p-4">
+                <Reveal
+                  key={meta.key}
+                  delay={index * 70}
+                  className="rounded-xl border border-white/15 bg-white/5 p-4 transition-colors hover:border-white/30 hover:bg-white/[0.08]"
+                >
                   <span className="mb-2 grid h-9 w-9 place-items-center rounded-[10px] bg-white/10 text-white">
                     <Icon name={meta.icon} size={18} />
                   </span>
@@ -521,7 +620,7 @@ export default function Landing() {
                     {item.label}
                   </p>
                   <p className="font-semibold text-white">{item.value}</p>
-                </div>
+                </Reveal>
               );
             })}
           </div>

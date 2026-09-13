@@ -8,6 +8,27 @@ const IDLE_CHECK_MS = 30 * 1000;
 const IDLE_KEY = 'drl.lastActivity';
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'focus'];
 
+// Passwords are checked by the admin-auth Edge Function, which counts failures
+// and locks the account server-side. Errors carry its code so screens can say
+// how many tries are left or how long the pause lasts.
+async function callAdminAuth(body) {
+  const { data, error } = await supabase.functions.invoke('admin-auth', { body });
+  if (!error) return data;
+
+  let payload = null;
+  try {
+    payload = await error.context?.json();
+  } catch {
+    // network failures have no JSON body
+  }
+  const err = new Error(payload?.message ?? 'Sign-in is unavailable right now. Please try again.');
+  err.code = payload?.code ?? 'network_error';
+  err.attemptsLeft = payload?.attempts_left;
+  err.nextLockSeconds = payload?.next_lock_seconds;
+  err.retryAfterSeconds = payload?.retry_after_seconds;
+  throw err;
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -107,27 +128,44 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(
     async (email, password) => {
       setIdleSignOut(false);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      const tokens = await callAdminAuth({ action: 'login', email, password });
+      // a stale timestamp from an earlier session would sign the new one out
+      // the moment the idle check runs
       markActivity();
+      const { error } = await supabase.auth.setSession(tokens);
+      if (error) throw error;
     },
     [markActivity]
   );
 
   const changePassword = useCallback(
     async (currentPassword, newPassword) => {
-      const email = session?.user?.email;
-      if (!email) throw new Error('Not signed in.');
-      // Re-authenticate first: proves the caller actually knows the current
-      // password rather than relying on an already-open session alone.
-      const { error: reauthError } = await supabase.auth.signInWithPassword({
-        email,
-        password: currentPassword,
-      });
-      if (reauthError) throw new Error('Current password is incorrect.');
-
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      if (!session) throw new Error('Not signed in.');
+      try {
+        await callAdminAuth({
+          action: 'change_password',
+          current_password: currentPassword,
+          new_password: newPassword,
+        });
+      } catch (err) {
+        if (err.code === 'invalid_credentials') {
+          const left = err.attemptsLeft;
+          throw new Error(
+            `Current password is incorrect.${
+              left ? ` ${left} ${left === 1 ? 'try' : 'tries'} left before sign-in is paused.` : ''
+            }`
+          );
+        }
+        if (err.code === 'locked') {
+          const minutes = Math.ceil((err.retryAfterSeconds ?? 900) / 60);
+          throw new Error(
+            `Too many wrong passwords. Sign-in is paused for ${minutes} ${
+              minutes === 1 ? 'minute' : 'minutes'
+            }.`
+          );
+        }
+        throw err;
+      }
     },
     [session]
   );

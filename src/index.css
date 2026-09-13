@@ -336,6 +336,70 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* Landing page: on-load hero stagger, scroll reveal, and small hover life */
+  .hero-in {
+    animation: heroIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(40px);
+    pointer-events: none;
+    animation: floatSlow 11s ease-in-out infinite;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .lift {
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  .lift:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .nav-link {
+    position: relative;
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -5px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--color-brand);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s ease;
+  }
+
+  .nav-link:hover::after {
+    transform: scaleX(1);
+  }
+
+  .pop {
+    animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 @keyframes shimmer {
@@ -348,6 +412,32 @@
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+}
+
+@keyframes heroIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-16px, 18px) scale(1.06);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 

@@ -31,6 +31,32 @@ export async function runMaintenance() {
   return unwrap(await supabase.rpc('run_maintenance'));
 }
 
+/* --------------------------------------------------------------- sign-in */
+
+export async function getLoginActivity(limit = 20) {
+  return unwrap(
+    await supabase
+      .from('login_attempts')
+      .select('id, email, outcome, ip, attempted_at')
+      .order('attempted_at', { ascending: false })
+      .limit(limit)
+  );
+}
+
+/** Accounts currently paused or partway to a pause. */
+export async function getLoginThrottle() {
+  return unwrap(
+    await supabase
+      .from('login_throttle')
+      .select('email, fail_count, lock_level, locked_until, last_failed_at')
+      .or(`locked_until.gt.${new Date().toISOString()},fail_count.gt.0`)
+      .order('last_failed_at', { ascending: false, nullsFirst: false })
+      .limit(10)
+  );
+}
+
+/* ------------------------------------------------------------------- risk */
+
 /** Share of money on the street that has gone quiet, by value. */
 export async function getPortfolioAtRisk() {
   const rows = unwrap(await supabase.rpc('portfolio_at_risk'));
