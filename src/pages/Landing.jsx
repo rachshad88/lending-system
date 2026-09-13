@@ -19,19 +19,18 @@ const STEP_META = [
   { icon: 'calendar', tone: 'amber' },
 ];
 
+const TONE_STYLE = {
+  brand: { background: 'var(--color-brand-soft)', color: 'var(--color-brand)' },
+  green: { background: 'rgb(52 199 89 / 0.16)', color: '#1f8a3a' },
+  amber: { background: 'rgb(255 159 10 / 0.16)', color: '#a5620a' },
+};
+
 const CONTACT_META = [
   { icon: 'members', key: 'office' },
   { icon: 'clock', key: 'open' },
   { icon: 'peso', key: 'loanRange' },
   { icon: 'calendar', key: 'collection' },
 ];
-
-const TONE_CLASSES = {
-  brand: 'bg-brand-soft text-brand',
-  green: 'bg-green-soft text-green',
-  amber: 'bg-amber-soft text-amber',
-  teal: 'bg-teal-soft text-teal',
-};
 
 const HERO_TAGLINE = 'Serbisyong mabilis, patas, at malinaw.';
 
@@ -244,23 +243,52 @@ function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
   );
 }
 
-/** Slow-drifting soft-color blobs behind the hero. Purely decorative. */
+/** Slow-drifting aurora blobs behind the hero, with a light cursor parallax. */
 function HeroBlobs() {
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let raf = null;
+    const onMove = (event) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const el = wrapRef.current;
+        if (!el) return;
+        const { innerWidth: w, innerHeight: h } = window;
+        const dx = (event.clientX / w - 0.5) * 24;
+        const dy = (event.clientY / h - 0.5) * 24;
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <>
+    <div ref={wrapRef} className="lp-aurora pointer-events-none absolute inset-0">
       <span
         className="blob"
-        style={{ top: '-6%', left: '8%', width: 260, height: 260, background: '#0073ea', opacity: 0.14 }}
+        style={{
+          top: '-14%',
+          left: '4%',
+          width: 420,
+          height: 420,
+          background: 'radial-gradient(circle, rgb(0 115 234 / 0.5), transparent 70%)',
+        }}
       />
       <span
         className="blob"
         style={{
-          top: '10%',
-          right: '4%',
-          width: 220,
-          height: 220,
-          background: '#00b874',
-          opacity: 0.14,
+          top: '-4%',
+          right: '-4%',
+          width: 380,
+          height: 380,
+          background: 'radial-gradient(circle, rgb(52 199 89 / 0.45), transparent 70%)',
           animationDelay: '-3s',
           animationDuration: '13s',
         }}
@@ -268,23 +296,23 @@ function HeroBlobs() {
       <span
         className="blob"
         style={{
-          bottom: '-10%',
-          left: '42%',
-          width: 240,
-          height: 240,
-          background: '#f0a02a',
-          opacity: 0.12,
+          bottom: '-22%',
+          left: '38%',
+          width: 400,
+          height: 400,
+          background: 'radial-gradient(circle, rgb(255 159 10 / 0.4), transparent 70%)',
           animationDelay: '-6s',
           animationDuration: '15s',
         }}
       />
-    </>
+    </div>
   );
 }
 
 function Calculator({ t }) {
   const [amount, setAmount] = useState(5000);
   const [term, setTerm] = useState(DEFAULT_TERM);
+  const cardRef = useRef(null);
 
   const figures = useMemo(() => {
     const interest = amount * INTEREST_RATE;
@@ -292,17 +320,39 @@ function Calculator({ t }) {
     return { interest, total, daily: total / term };
   }, [amount, term]);
 
+  const termFillPct = ((term - 20) / (60 - 20)) * 100;
+
+  const handleTilt = (event) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width - 0.5;
+    const py = (event.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `perspective(900px) rotateX(${py * -6}deg) rotateY(${px * 8}deg) translateY(-2px)`;
+  };
+
+  const resetTilt = () => {
+    const card = cardRef.current;
+    if (card) card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
+  };
+
   return (
-    <div className="card w-full p-5 sm:p-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div
+      ref={cardRef}
+      className="lp-glass lp-tilt w-full p-6 sm:p-7"
+      onMouseMove={handleTilt}
+      onMouseLeave={resetTilt}
+    >
+      <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className="text-base font-bold">{t.title}</h2>
-        <span className="pill pill-blue">{t.pill}</span>
+        <span className="lp-pill lp-pill-tag">{t.pill}</span>
       </div>
 
-      <label className="label" htmlFor="calc-amount">
+      <label className="mb-2 block text-xs font-semibold text-muted" htmlFor="calc-amount">
         {t.amountLabel}
       </label>
-      <div className="mb-3 flex items-baseline gap-2">
+      <div className="mb-4 flex items-baseline gap-2 border-b-2 border-line pb-2.5 transition-colors focus-within:border-brand">
         <span className="text-2xl font-extrabold text-brand">₱</span>
         <input
           id="calc-amount"
@@ -312,26 +362,24 @@ function Calculator({ t }) {
           step="500"
           value={amount}
           onChange={(event) => setAmount(Math.max(0, Number(event.target.value) || 0))}
-          className="tnum w-full border-0 border-b-2 border-line bg-transparent pb-1 text-3xl font-extrabold tracking-tight outline-none focus:border-brand"
+          className="tnum w-full border-0 bg-transparent text-3xl font-extrabold tracking-tight outline-none sm:text-[34px]"
         />
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         {AMOUNT_PRESETS.map((preset) => (
           <button
             key={preset}
             type="button"
             onClick={() => setAmount(preset)}
-            className={`pill min-h-[34px] px-3 transition-colors ${
-              amount === preset ? 'pill-blue' : 'pill-grey hover:bg-[#e6e9f1]'
-            }`}
+            className={`lp-preset ${amount === preset ? 'is-active' : ''}`}
           >
             {pesoWhole(preset)}
           </button>
         ))}
       </div>
 
-      <label className="label" htmlFor="calc-term">
+      <label className="mb-2 block text-xs font-semibold text-muted" htmlFor="calc-term">
         {t.termLabel} <span className="font-bold text-ink">{term} {t.days}</span>
       </label>
       <input
@@ -342,24 +390,27 @@ function Calculator({ t }) {
         step="10"
         value={term}
         onChange={(event) => setTerm(Number(event.target.value))}
-        className="mb-5 w-full accent-[#0073ea]"
+        className="lp-range mb-6"
+        style={{
+          background: `linear-gradient(to right, var(--color-brand) 0%, var(--color-brand) ${termFillPct}%, rgb(0 0 0 / 0.08) ${termFillPct}%, rgb(0 0 0 / 0.08) 100%)`,
+        }}
       />
 
-      <dl className="grid gap-3 rounded-xl bg-canvas p-4 sm:grid-cols-3">
+      <dl className="grid gap-3 rounded-2xl bg-black/[0.03] p-4 sm:grid-cols-3">
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-faint">{t.payDaily}</dt>
+          <dt className="text-[10.5px] font-bold uppercase tracking-wide text-faint">{t.payDaily}</dt>
           <dd key={`daily-${figures.daily}`} className="tnum pop text-xl font-extrabold text-green">
             {peso(figures.daily)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-faint">{t.interest}</dt>
+          <dt className="text-[10.5px] font-bold uppercase tracking-wide text-faint">{t.interest}</dt>
           <dd key={`interest-${figures.interest}`} className="tnum pop text-xl font-extrabold">
             {peso(figures.interest)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-faint">{t.totalPayable}</dt>
+          <dt className="text-[10.5px] font-bold uppercase tracking-wide text-faint">{t.totalPayable}</dt>
           <dd key={`total-${figures.total}`} className="tnum pop text-xl font-extrabold">
             {peso(figures.total)}
           </dd>
@@ -373,11 +424,19 @@ function Calculator({ t }) {
 
 export default function Landing() {
   const [lang, setLang] = useState('en');
+  const [scrolled, setScrolled] = useState(false);
   const t = CONTENT[lang];
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
+    <div className="landing-page min-h-screen bg-surface">
+      <header className={`lp-nav ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <a href="#top" className="flex items-center gap-2.5">
             <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-10 w-10 rounded-[11px]" />
@@ -410,12 +469,12 @@ export default function Landing() {
             <button
               type="button"
               onClick={() => setLang((current) => (current === 'en' ? 'fil' : 'en'))}
-              className="pill pill-grey min-h-[34px] px-3 font-bold"
+              className="lp-btn lp-btn-glass lp-btn-tiny font-bold"
               aria-label={lang === 'en' ? 'Switch to Filipino' : 'Switch to English'}
             >
               {lang === 'en' ? 'FIL' : 'EN'}
             </button>
-            <Link to="/login" className="btn btn-primary btn-sm">
+            <Link to="/login" className="lp-btn lp-btn-primary lp-btn-sm">
               {t.adminLogin}
             </Link>
           </div>
@@ -423,26 +482,17 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section
-        id="top"
-        className="relative overflow-hidden border-b border-line"
-        style={{
-          background:
-            'radial-gradient(1100px 500px at 12% -8%, #e6f1fe 0%, transparent 60%),' +
-            'radial-gradient(800px 420px at 92% 4%, #e1f7ee 0%, transparent 58%),' +
-            'radial-gradient(700px 380px at 60% 100%, #fef5e6 0%, transparent 60%)',
-        }}
-      >
+      <section id="top" className="relative overflow-hidden border-b border-line">
         <HeroBlobs />
-        <div className="relative mx-auto grid max-w-[1180px] items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+        <div className="relative mx-auto grid max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div>
-            <span className="hero-in pill pill-green mb-5">
+            <span className="hero-in lp-pill lp-pill-badge mb-5">
               <Icon name="check" size={13} />
               {t.hero.badge}
             </span>
 
             <h1
-              className="hero-in text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold leading-[1.05] tracking-[-0.03em]"
+              className="hero-in text-[clamp(2.2rem,6vw,3.8rem)] font-bold leading-[1.04] tracking-[-0.035em]"
               style={{ animationDelay: '80ms' }}
             >
               {t.hero.titleLine1}
@@ -464,23 +514,23 @@ export default function Landing() {
               {t.hero.subhead}
             </p>
 
-            <div className="hero-in mt-7 flex flex-wrap gap-3" style={{ animationDelay: '300ms' }}>
-              <a href="#contact" className="btn btn-primary group">
+            <div className="hero-in mt-8 flex flex-wrap gap-3" style={{ animationDelay: '300ms' }}>
+              <a href="#contact" className="lp-btn lp-btn-primary group">
                 {t.hero.ctaPrimary}
                 <Icon name="chevronRight" size={17} className="transition-transform group-hover:translate-x-1" />
               </a>
-              <a href="#how" className="btn btn-outline">
+              <a href="#how" className="lp-btn lp-btn-glass">
                 {t.hero.ctaSecondary}
               </a>
             </div>
 
             <dl
-              className="hero-in mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-line/80 pt-6"
+              className="hero-in mt-11 grid max-w-lg grid-cols-3 gap-4 border-t border-line/70 pt-6"
               style={{ animationDelay: '380ms' }}
             >
               {t.hero.stats.map((item) => (
                 <div key={item.label}>
-                  <dt className="text-xl font-extrabold tracking-tight sm:text-2xl">
+                  <dt className="tnum text-xl font-extrabold tracking-tight sm:text-2xl">
                     {item.value}
                   </dt>
                   <dd className="text-xs font-semibold text-faint sm:text-sm">{item.label}</dd>
@@ -496,10 +546,10 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how" className="mx-auto max-w-[1180px] px-4 py-14 sm:px-6 sm:py-20">
+      <section id="how" className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24">
         <Reveal className="mb-10 max-w-2xl">
-          <span className="pill pill-blue mb-3">{t.how.pill}</span>
-          <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-extrabold leading-tight tracking-[-0.025em]">
+          <span className="lp-pill lp-pill-tag mb-3">{t.how.pill}</span>
+          <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-bold leading-tight tracking-[-0.03em]">
             {t.how.heading}
           </h2>
           <p className="mt-3 text-lg text-muted">{t.how.body}</p>
@@ -507,10 +557,11 @@ export default function Landing() {
 
         <ol className="grid gap-5 md:grid-cols-3">
           {t.steps.map((step, index) => (
-            <Reveal key={step.title} as="li" delay={index * 100} className="card lift p-6">
-              <div className="mb-4 flex items-center justify-between">
+            <Reveal key={step.title} as="li" delay={index * 90} className="lp-glass lift p-7">
+              <div className="mb-5 flex items-center justify-between">
                 <span
-                  className={`grid h-11 w-11 place-items-center rounded-xl ${TONE_CLASSES[STEP_META[index].tone]}`}
+                  className="grid h-11 w-11 place-items-center rounded-[15px]"
+                  style={TONE_STYLE[STEP_META[index].tone]}
                 >
                   <Icon name={STEP_META[index].icon} size={21} />
                 </span>
@@ -524,19 +575,19 @@ export default function Landing() {
       </section>
 
       {/* Rates */}
-      <section id="rates" className="border-y border-line bg-canvas">
-        <div className="mx-auto max-w-[1180px] px-4 py-14 sm:px-6 sm:py-20">
+      <section id="rates" className="bg-surface">
+        <div className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24">
           <Reveal className="mb-8 max-w-2xl">
-            <span className="pill pill-amber mb-3">{t.rates.pill}</span>
-            <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-extrabold leading-tight tracking-[-0.025em]">
+            <span className="lp-pill lp-pill-tag mb-3">{t.rates.pill}</span>
+            <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-bold leading-tight tracking-[-0.03em]">
               {t.rates.heading}
             </h2>
             <p className="mt-3 text-lg text-muted">{t.rates.body}</p>
           </Reveal>
 
-          <Reveal delay={100} className="card overflow-hidden">
+          <Reveal delay={100} className="lp-glass overflow-hidden">
             <div className="table-wrap">
-              <table className="data">
+              <table className="lp-table">
                 <thead>
                   <tr>
                     <th>{t.rates.table.loanAmount}</th>
@@ -550,7 +601,7 @@ export default function Landing() {
                     const interest = principal * INTEREST_RATE;
                     const total = principal + interest;
                     return (
-                      <tr key={principal} className="transition-colors hover:bg-[#f8fafd]">
+                      <tr key={principal}>
                         <td className="font-bold">{pesoWhole(principal)}</td>
                         <td className="num tnum text-muted">{pesoWhole(interest)}</td>
                         <td className="num tnum font-semibold">{pesoWhole(total)}</td>
@@ -571,11 +622,11 @@ export default function Landing() {
       </section>
 
       {/* Requirements */}
-      <section id="requirements" className="mx-auto max-w-[1180px] px-4 py-14 sm:px-6 sm:py-20">
+      <section id="requirements" className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <Reveal>
-            <span className="pill pill-teal mb-3">{t.requirements.pill}</span>
-            <h2 className="text-[clamp(1.6rem,4vw,2.4rem)] font-extrabold leading-tight tracking-[-0.025em]">
+            <span className="lp-pill lp-pill-tag mb-3">{t.requirements.pill}</span>
+            <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-bold leading-tight tracking-[-0.03em]">
               {t.requirements.heading}
             </h2>
             <p className="mt-3 text-lg text-muted">{t.requirements.body}</p>
@@ -583,7 +634,7 @@ export default function Landing() {
 
           <ul className="grid gap-3 sm:grid-cols-2">
             {t.requirements.items.map((item, index) => (
-              <Reveal key={item} as="li" delay={index * 60} className="card lift flex items-center gap-3 p-4">
+              <Reveal key={item} as="li" delay={index * 60} className="lp-glass lift flex items-center gap-3 p-4">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green-soft text-green">
                   <Icon name="check" size={15} strokeWidth={2.6} />
                 </span>
@@ -596,9 +647,9 @@ export default function Landing() {
 
       {/* Contact */}
       <section id="contact" className="border-t border-line bg-navy text-white">
-        <div className="mx-auto grid max-w-[1180px] gap-8 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center">
+        <div className="mx-auto grid max-w-[1180px] gap-8 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:items-center">
           <Reveal>
-            <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-extrabold leading-tight tracking-[-0.025em] text-white">
+            <h2 className="text-[clamp(1.8rem,4vw,2.7rem)] font-bold leading-tight tracking-[-0.03em] text-white">
               {t.contact.heading}
             </h2>
             <p className="mt-4 max-w-lg text-lg text-white/70">{t.contact.body}</p>
@@ -608,15 +659,11 @@ export default function Landing() {
             {CONTACT_META.map((meta, index) => {
               const item = t.contact[meta.key];
               return (
-                <Reveal
-                  key={meta.key}
-                  delay={index * 70}
-                  className="rounded-xl border border-white/15 bg-white/5 p-4 transition-colors hover:border-white/30 hover:bg-white/[0.08]"
-                >
-                  <span className="mb-2 grid h-9 w-9 place-items-center rounded-[10px] bg-white/10 text-white">
+                <Reveal key={meta.key} delay={index * 70} className="lp-glass-dark p-5">
+                  <span className="mb-3 grid h-9 w-9 place-items-center rounded-[11px] bg-white/10 text-white">
                     <Icon name={meta.icon} size={18} />
                   </span>
-                  <p className="text-xs font-bold uppercase tracking-wider text-white/50">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-white/48">
                     {item.label}
                   </p>
                   <p className="font-semibold text-white">{item.value}</p>
