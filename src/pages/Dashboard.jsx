@@ -224,13 +224,22 @@ export default function Dashboard() {
           <h2 className="text-sm font-bold uppercase tracking-wide text-faint">All time</h2>
           <span className="h-px flex-1 bg-line" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Total ever lent"
+            value={peso(k.principal_released)}
+            hint="Every loan ever released. Only grows — paying off a loan never reduces this."
+            icon="loans"
+            tone="brand"
+            emphasis
+            loading={kpisUnavailable}
+          />
           <StatCard
             label="Principal on the street"
             value={peso(k.principal_outstanding)}
-            hint={`${peso(k.principal_released)} released all time`}
+            hint="Principal still to be collected on active loans"
             icon="wallet"
-            tone="brand"
+            tone="amber"
             emphasis
             loading={kpisUnavailable}
           />
