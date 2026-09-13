@@ -63,6 +63,122 @@ const FIELDS = [
   },
 ];
 
+/** Toggleable password field, matching the one on the login form. */
+function PasswordField({ id, label, value, onChange, autoComplete }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div>
+      <label className="label" htmlFor={id}>
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          className="input pr-11"
+          type={show ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          required
+          value={value}
+          onChange={onChange}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((current) => !current)}
+          className="absolute inset-y-0 right-0 grid w-11 place-items-center text-faint transition-colors hover:text-muted"
+          aria-label={show ? 'Hide password' : 'Show password'}
+        >
+          <Icon name={show ? 'eyeOff' : 'eye'} size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChangePasswordForm() {
+  const { changePassword } = useAuth();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [done, setDone] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError(null);
+    setDone(false);
+
+    if (next.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+    if (next !== confirm) {
+      setError('New password and confirmation do not match.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await changePassword(current, next);
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} noValidate className="mt-4 space-y-3 border-t border-line pt-4">
+      <p className="font-bold">Change password</p>
+      <PasswordField
+        id="pw-current"
+        label="Current password"
+        value={current}
+        onChange={(event) => setCurrent(event.target.value)}
+        autoComplete="current-password"
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <PasswordField
+          id="pw-new"
+          label="New password"
+          value={next}
+          onChange={(event) => setNext(event.target.value)}
+          autoComplete="new-password"
+        />
+        <PasswordField
+          id="pw-confirm"
+          label="Confirm new password"
+          value={confirm}
+          onChange={(event) => setConfirm(event.target.value)}
+          autoComplete="new-password"
+        />
+      </div>
+
+      {error && (
+        <p role="alert" className="rounded-xl bg-red-soft px-4 py-3 text-sm">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" className="btn btn-outline" disabled={busy}>
+          {busy ? <Spinner size={18} label="Saving" /> : 'Update password'}
+        </button>
+        {done && (
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-green">
+            <Icon name="check" size={16} strokeWidth={2.6} />
+            Password updated
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
+
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { data, error, loading, reload } = useAsync(getSettings, []);
@@ -197,6 +313,9 @@ export default function Settings() {
             <dd className="font-semibold">1 hour</dd>
           </div>
         </dl>
+
+        <ChangePasswordForm />
+
         <button type="button" className="btn btn-outline mt-4" onClick={signOut}>
           <Icon name="logout" size={16} />
           Sign out

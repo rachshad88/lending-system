@@ -114,6 +114,24 @@ export function AuthProvider({ children }) {
     [markActivity]
   );
 
+  const changePassword = useCallback(
+    async (currentPassword, newPassword) => {
+      const email = session?.user?.email;
+      if (!email) throw new Error('Not signed in.');
+      // Re-authenticate first: proves the caller actually knows the current
+      // password rather than relying on an already-open session alone.
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+      if (reauthError) throw new Error('Current password is incorrect.');
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+    },
+    [session]
+  );
+
   const signOut = useCallback(async () => {
     setIdleSignOut(false);
     try {
@@ -135,6 +153,7 @@ export function AuthProvider({ children }) {
         idleSignOut,
         signIn,
         signOut,
+        changePassword,
         isConfigured,
       }}
     >
