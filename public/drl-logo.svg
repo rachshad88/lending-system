@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="DRL Lending Cooperative">
+  <defs>
+    <clipPath id="weave"><rect x="98.5" y="74.5" width="36" height="40"></rect></clipPath>
+  </defs>
+  <circle cx="100" cy="100" r="100" fill="#0B3A8F"></circle>
+  <line x1="100.00" y1="24.00" x2="100.00" y2="8.00" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="153.74" y1="46.26" x2="165.05" y2="34.95" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="176.00" y1="100.00" x2="192.00" y2="100.00" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="153.74" y1="153.74" x2="165.05" y2="165.05" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="100.00" y1="176.00" x2="100.00" y2="192.00" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="46.26" y1="153.74" x2="34.95" y2="165.05" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="24.00" y1="100.00" x2="8.00" y2="100.00" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <line x1="46.26" y1="46.26" x2="34.95" y2="34.95" stroke="#E8B93A" stroke-width="3" stroke-linecap="butt"></line>
+    <circle cx="125" cy="117" r="35" fill="none" stroke="#E8B93A" stroke-width="3"></circle>
+    <circle cx="75" cy="117" r="35" fill="none" stroke="#FFFFFF" stroke-width="3"></circle>
+    <circle cx="100" cy="83" r="35" fill="none" stroke="#FFFFFF" stroke-width="3"></circle>
+    <g clip-path="url(#weave)"><circle cx="125" cy="117" r="35" fill="none" stroke="#E8B93A" stroke-width="3"></circle></g>
+</svg>

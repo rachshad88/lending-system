@@ -106,9 +106,7 @@ export default function Login() {
         }}
       >
         <Link to="/" className="flex items-center gap-3 text-white">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-lg font-extrabold text-brand">
-            D
-          </span>
+          <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-11 w-11" />
           <span className="leading-tight">
             <span className="block font-extrabold">DRL Lending</span>
             <span className="block text-[10px] font-bold tracking-[0.18em] text-white/50">
@@ -122,7 +120,7 @@ export default function Login() {
             Your whole book, in one place.
           </h2>
           <p className="mt-4 text-lg text-white/70">
-            Principal out on the street, income earned, who paid today and who did not — updated the
+            Principal out on the street, income earned, who paid today and who did not. Updated the
             moment you record a collection.
           </p>
         </div>
@@ -137,9 +135,7 @@ export default function Login() {
       <div className="grid min-h-screen place-items-center bg-canvas px-4 py-10 lg:min-h-0">
         <div className="w-full max-w-sm">
           <Link to="/" className="mb-8 inline-flex items-center gap-2.5 lg:hidden">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand text-lg font-extrabold text-white">
-              D
-            </span>
+            <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-11 w-11" />
             <span className="leading-tight">
               <span className="block font-extrabold">DRL Lending</span>
               <span className="block text-[10px] font-bold tracking-[0.18em] text-faint">

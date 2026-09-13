@@ -184,7 +184,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
             className="input"
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="Optional — e.g. paid at terminal"
+            placeholder="Optional, e.g. paid at terminal"
           />
         </div>
 

@@ -52,7 +52,7 @@ export default function MemberForm({ open, onClose, onSubmit, initial, title }) 
       open={open}
       onClose={onClose}
       title={title ?? 'New member'}
-      subtitle="Only the name is required — the rest helps you find and follow up on them later."
+      subtitle="Only the name is required. The rest helps you find and follow up on them later."
       size="lg"
       footer={
         <>

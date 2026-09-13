@@ -13,9 +13,7 @@ const NAV = [
 function Logo({ compact = false }) {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-brand font-extrabold text-white">
-        D
-      </span>
+      <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-9 w-9 rounded-[10px]" />
       {!compact && (
         <span className="leading-tight">
           <span className="block text-sm font-extrabold tracking-tight">DRL Lending</span>
