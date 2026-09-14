@@ -230,6 +230,12 @@
     white-space: nowrap;
   }
 
+  /* The same chip used as an actual control. Buttons take a moderate corner
+     radius; the fully rounded .pill is for non-interactive badges only. */
+  .pill-btn {
+    border-radius: 10px;
+  }
+
   .pill-green {
     background: var(--color-green-soft);
     color: #027a4d;

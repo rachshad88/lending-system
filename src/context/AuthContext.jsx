@@ -1,10 +1,19 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { supabase, isConfigured } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
 const IDLE_LIMIT_MS = 60 * 60 * 1000; // one hour of inactivity
 const IDLE_CHECK_MS = 30 * 1000;
+const IDLE_PERSIST_MS = 30 * 1000;
 const IDLE_KEY = 'drl.lastActivity';
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'focus'];
 
@@ -36,15 +45,25 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(isConfigured);
   const [idleSignOut, setIdleSignOut] = useState(false);
   const lastActivity = useRef(Date.now());
+  const lastPersisted = useRef(0);
 
-  const markActivity = useCallback(() => {
-    lastActivity.current = Date.now();
+  const persistActivity = useCallback((at) => {
+    lastPersisted.current = at;
     try {
-      localStorage.setItem(IDLE_KEY, String(lastActivity.current));
+      localStorage.setItem(IDLE_KEY, String(at));
     } catch {
       // private browsing can refuse writes; the in-memory timer still works
     }
   }, []);
+
+  // Scrolling fires `wheel` dozens of times a second, and localStorage writes
+  // are synchronous. An hour-long timeout does not need better than half-minute
+  // resolution on disk, so only the in-memory stamp moves every time.
+  const markActivity = useCallback(() => {
+    const now = Date.now();
+    lastActivity.current = now;
+    if (now - lastPersisted.current >= IDLE_PERSIST_MS) persistActivity(now);
+  }, [persistActivity]);
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -73,10 +92,15 @@ export function AuthProvider({ children }) {
     };
   }, [markActivity]);
 
+  // A token refresh hands back a fresh session object roughly hourly and on tab
+  // focus. Keying the effects below on the user id instead means they do not
+  // re-run for an answer that cannot have changed.
+  const userId = session?.user?.id ?? null;
+
   // Confirm the signed-in user is actually on the admin list. Row level
   // security would block them anyway, but an explicit answer beats empty pages.
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
     let active = true;
     supabase.rpc('is_admin').then(({ data, error }) => {
       if (!active) return;
@@ -86,12 +110,12 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [session]);
+  }, [userId]);
 
   // Idle timeout. The timestamp lives in localStorage too, so closing the tab
   // for two hours and coming back still counts as idle.
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
 
     try {
       const stored = Number(localStorage.getItem(IDLE_KEY));
@@ -123,24 +147,26 @@ export function AuthProvider({ children }) {
       clearInterval(timer);
       ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, markActivity));
     };
-  }, [session, markActivity]);
+  }, [userId, markActivity]);
 
   const signIn = useCallback(
     async (email, password) => {
       setIdleSignOut(false);
       const tokens = await callAdminAuth({ action: 'login', email, password });
       // a stale timestamp from an earlier session would sign the new one out
-      // the moment the idle check runs
-      markActivity();
+      // the moment the idle check runs, so this one writes through
+      const now = Date.now();
+      lastActivity.current = now;
+      persistActivity(now);
       const { error } = await supabase.auth.setSession(tokens);
       if (error) throw error;
     },
-    [markActivity]
+    [persistActivity]
   );
 
   const changePassword = useCallback(
     async (currentPassword, newPassword) => {
-      if (!session) throw new Error('Not signed in.');
+      if (!userId) throw new Error('Not signed in.');
       try {
         await callAdminAuth({
           action: 'change_password',
@@ -167,7 +193,7 @@ export function AuthProvider({ children }) {
         throw err;
       }
     },
-    [session]
+    [userId]
   );
 
   const signOut = useCallback(async () => {
@@ -180,24 +206,24 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        session,
-        user: session?.user ?? null,
-        isAdmin,
-        adminChecked,
-        loading,
-        idleSignOut,
-        signIn,
-        signOut,
-        changePassword,
-        isConfigured,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  // A fresh object here would re-render every consumer on any auth state change.
+  const value = useMemo(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      isAdmin,
+      adminChecked,
+      loading,
+      idleSignOut,
+      signIn,
+      signOut,
+      changePassword,
+      isConfigured,
+    }),
+    [session, isAdmin, adminChecked, loading, idleSignOut, signIn, signOut, changePassword]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

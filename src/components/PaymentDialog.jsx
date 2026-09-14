@@ -136,7 +136,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 type="button"
-                className="pill pill-grey min-h-[32px] px-3"
+                className="pill pill-btn pill-grey min-h-[32px] px-3"
                 onClick={() => setAmount(String(Number(loan.daily_due).toFixed(2)))}
               >
                 Daily due {peso(loan.daily_due)}
@@ -144,7 +144,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
               {Number(loan.arrears) > 0 && (
                 <button
                   type="button"
-                  className="pill pill-amber min-h-[32px] px-3"
+                  className="pill pill-btn pill-amber min-h-[32px] px-3"
                   onClick={() => setAmount(String(Number(loan.arrears).toFixed(2)))}
                 >
                   Catch up {peso(loan.arrears)}
@@ -152,7 +152,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
               )}
               <button
                 type="button"
-                className="pill pill-blue min-h-[32px] px-3"
+                className="pill pill-btn pill-blue min-h-[32px] px-3"
                 onClick={() => setAmount(String(payoff.toFixed(2)))}
               >
                 Full payoff {peso(payoff)}

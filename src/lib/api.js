@@ -31,6 +31,15 @@ export async function runMaintenance() {
   return unwrap(await supabase.rpc('run_maintenance'));
 }
 
+// Pages kick this off on load. One pass per browser session is enough, so
+// revisiting the dashboard or clicking through the risk tabs no longer pays for
+// a fresh write round trip each time.
+let maintenancePass = null;
+export function ensureMaintenance() {
+  maintenancePass ??= runMaintenance().catch(() => null);
+  return maintenancePass;
+}
+
 /* --------------------------------------------------------------- sign-in */
 
 export async function getLoginActivity(limit = 20) {
@@ -370,8 +379,22 @@ export async function getSettings() {
   return unwrap(await supabase.from('settings').select('*').eq('id', 1).single());
 }
 
+// One row that changes maybe monthly, read by five different screens. Cache it
+// for the session rather than paying a round trip on every navigation.
+let settingsPromise = null;
+
+export function getSettingsCached() {
+  // A failure must not be cached, or every screen keeps replaying it and the
+  // "Try again" buttons have nothing to retry.
+  settingsPromise ??= getSettings().catch((err) => {
+    settingsPromise = null;
+    throw err;
+  });
+  return settingsPromise;
+}
+
 export async function updateSettings(values) {
-  return unwrap(
+  const data = unwrap(
     await supabase
       .from('settings')
       .update({ ...values, updated_at: new Date().toISOString() })
@@ -379,6 +402,8 @@ export async function updateSettings(values) {
       .select('*')
       .single()
   );
+  settingsPromise = Promise.resolve(data);
+  return data;
 }
 
 /* ---------------------------------------------------------------- reports */

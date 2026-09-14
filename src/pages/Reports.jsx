@@ -272,7 +272,7 @@ export default function Reports() {
               <button
                 key={kind}
                 type="button"
-                className="pill pill-grey min-h-[34px] px-3 transition-colors hover:bg-[#e6e9f1]"
+                className="pill pill-btn pill-grey min-h-[34px] px-3 transition-colors hover:bg-[#e6e9f1]"
                 onClick={() => preset(kind)}
               >
                 {label}

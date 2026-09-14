@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LoanForm from '../components/LoanForm';
 import Pagination from '../components/Pagination';
 import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows, StatusPill } from '../components/ui';
 import { useAsync, useDebounced } from '../lib/useAsync';
-import { createLoan, getSettings, listLoans } from '../lib/api';
+import { createLoan, getSettingsCached, listLoans } from '../lib/api';
 import { formatDate, peso } from '../lib/format';
 import { quietDays, quietTone } from '../lib/risk';
 
@@ -38,6 +38,21 @@ const VIEWS = [
   { id: 'all', label: 'Everything', status: 'all', view: 'all' },
 ];
 
+/** Tailwind's `sm` breakpoint, so only one of the two row layouts is built. */
+function useIsWideScreen() {
+  const [wide, setWide] = useState(() => window.matchMedia('(min-width: 640px)').matches);
+
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 640px)');
+    const onChange = (event) => setWide(event.matches);
+    setWide(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  return wide;
+}
+
 function progress(loan) {
   const total = Number(loan.total_obligation) || 0;
   if (total <= 0) return 0;
@@ -60,10 +75,11 @@ export default function Loans() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const debouncedSearch = useDebounced(search);
+  const wide = useIsWideScreen();
 
   const active = VIEWS.find((v) => v.id === viewId) ?? VIEWS[0];
 
-  const settings = useAsync(getSettings, []);
+  const settings = useAsync(getSettingsCached, []);
   const quietThreshold = Number(settings.data?.gone_quiet_days) || 3;
 
   const { data, error, loading, reload } = useAsync(
@@ -103,7 +119,7 @@ export default function Loans() {
               setViewId(view.id);
               setPage(1);
             }}
-            className={`pill min-h-[36px] shrink-0 px-3.5 transition-colors ${
+            className={`pill pill-btn min-h-[36px] shrink-0 px-3.5 transition-colors ${
               viewId === view.id ? 'pill-blue' : 'pill-grey hover:bg-[#e6e9f1]'
             }`}
             aria-pressed={viewId === view.id}
@@ -140,7 +156,7 @@ export default function Loans() {
               setSort(option.id);
               setPage(1);
             }}
-            className={`pill min-h-[34px] px-3 transition-colors ${
+            className={`pill pill-btn min-h-[34px] px-3 transition-colors ${
               sort === option.id ? 'pill-blue' : 'pill-grey hover:bg-[#e6e9f1]'
             }`}
             aria-pressed={sort === option.id}
@@ -170,7 +186,8 @@ export default function Loans() {
         ) : (
           <>
             {/* Phone list */}
-            <ul className="divide-y divide-[#eef0f6] sm:hidden">
+            {!wide && (
+            <ul className="divide-y divide-[#eef0f6]">
               {rows.map((loan) => (
                 <li key={loan.loan_id}>
                   <Link
@@ -212,9 +229,11 @@ export default function Loans() {
                 </li>
               ))}
             </ul>
+            )}
 
             {/* Desktop table */}
-            <div className="table-wrap hidden sm:block">
+            {wide && (
+            <div className="table-wrap">
               <table className="data">
                 <thead>
                   <tr>
@@ -233,7 +252,9 @@ export default function Loans() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((loan) => (
+                  {rows.map((loan) => {
+                    const pct = progress(loan);
+                    return (
                     <tr key={loan.loan_id} className="clickable">
                       <td>
                         <Link to={`/app/loans/${loan.loan_id}`} className="font-bold">
@@ -258,13 +279,8 @@ export default function Loans() {
                         <QuietCell loan={loan} threshold={quietThreshold} />
                       </td>
                       <td className="w-28">
-                        <ProgressBar
-                          value={progress(loan)}
-                          tone={loan.is_overdue ? 'bg-red' : 'bg-green'}
-                        />
-                        <span className="tnum mt-1 block text-xs text-muted">
-                          {progress(loan)}%
-                        </span>
+                        <ProgressBar value={pct} tone={loan.is_overdue ? 'bg-red' : 'bg-green'} />
+                        <span className="tnum mt-1 block text-xs text-muted">{pct}%</span>
                       </td>
                       <td>
                         <StatusPill status={loan.is_overdue ? 'overdue' : loan.status} />
@@ -279,10 +295,12 @@ export default function Loans() {
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            )}
 
             <Pagination
               page={page}

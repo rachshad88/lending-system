@@ -29,9 +29,22 @@ export const pesoWhole = (value) => pesoWholeFmt.format(Number(value ?? 0));
 export const count = (value) => countFmt.format(Number(value ?? 0));
 export const plainAmount = (value) => plainFmt.format(Number(value ?? 0));
 
+// Building an Intl.DateTimeFormat is far more expensive than using one, and the
+// tables here format a date per row (a payment strip, one per day of the term).
+const dateFormatters = new Map();
+function dateFormatter(locale, options) {
+  const key = locale + JSON.stringify(options);
+  let formatter = dateFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    dateFormatters.set(key, formatter);
+  }
+  return formatter;
+}
+
 /** Today's date in Manila, as YYYY-MM-DD. */
 export function todayISO() {
-  return new Intl.DateTimeFormat('en-CA', {
+  return dateFormatter('en-CA', {
     timeZone: TZ,
     year: 'numeric',
     month: '2-digit',
@@ -81,28 +94,24 @@ export function formatDate(iso, opts = {}) {
   // Timestamps get converted to Manila time; date-only strings must not be
   // shifted by any timezone at all.
   return isTimestamp(iso)
-    ? new Intl.DateTimeFormat('en-PH', { timeZone: TZ, ...base }).format(new Date(iso))
-    : new Intl.DateTimeFormat('en-PH', base).format(parseDateOnly(iso));
+    ? dateFormatter('en-PH', { timeZone: TZ, ...base }).format(new Date(iso))
+    : dateFormatter('en-PH', base).format(parseDateOnly(iso));
 }
 
 export function formatDateShort(iso) {
   if (!iso) return '—';
-  return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(
-    parseDateOnly(iso)
-  );
+  return dateFormatter('en-PH', { month: 'short', day: 'numeric' }).format(parseDateOnly(iso));
 }
 
 export function formatMonth(iso) {
   if (!iso) return '—';
-  return new Intl.DateTimeFormat('en-PH', { month: 'short', year: 'numeric' }).format(
-    parseDateOnly(iso)
-  );
+  return dateFormatter('en-PH', { month: 'short', year: 'numeric' }).format(parseDateOnly(iso));
 }
 
 /** Format a timestamptz from the database in Manila time. */
 export function formatDateTime(ts) {
   if (!ts) return '—';
-  return new Intl.DateTimeFormat('en-PH', {
+  return dateFormatter('en-PH', {
     timeZone: TZ,
     month: 'short',
     day: 'numeric',

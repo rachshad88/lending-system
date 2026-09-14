@@ -8,6 +8,11 @@ import { Icon } from './ui';
 export default function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
   const panelRef = useRef(null);
   const titleId = useId();
+  // Call sites pass a new inline arrow every render. Holding it in a ref keeps
+  // this effect keyed on `open` alone, so typing in a field the parent owns
+  // cannot tear the focus trap down and pull focus back out of that field.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -18,7 +23,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -39,10 +44,14 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
     };
 
     document.addEventListener('keydown', onKeyDown);
+    // querySelector answers in document order, so listing buttons alongside the
+    // fields would always land on the header's Close button. Fields first, and
+    // only fall back to a button when the dialog has none.
     const focusTimer = setTimeout(() => {
-      const target = panelRef.current?.querySelector(
-        'input:not([type="hidden"]), select, textarea, button'
-      );
+      const panel = panelRef.current;
+      const target =
+        panel?.querySelector('input:not([type="hidden"]), select, textarea') ??
+        panel?.querySelector('button');
       target?.focus();
     }, 30);
 
@@ -52,7 +61,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
       document.body.style.overflow = overflow;
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

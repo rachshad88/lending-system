@@ -55,7 +55,7 @@ export function reliabilityGrade(facts, { goneQuietDays = 3 } = {}) {
     return { grade: 'red', reasons: [`Went ${gap} days without paying at one point`] };
   }
   if (completed === 0) {
-    return { grade: 'new', reasons: ['No finished loans yet — nothing to judge on'] };
+    return { grade: 'new', reasons: ['No finished loans yet, nothing to judge on'] };
   }
 
   const reasons = [];

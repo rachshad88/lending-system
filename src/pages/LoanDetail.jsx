@@ -269,6 +269,8 @@ export default function LoanDetail() {
   const [editingLoan, setEditingLoan] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState(null);
+  const [deletingPayment, setDeletingPayment] = useState(false);
   const [confirmDeleteLoan, setConfirmDeleteLoan] = useState(false);
   const [deleteLoanReason, setDeleteLoanReason] = useState('');
   const [deleteLoanError, setDeleteLoanError] = useState(null);
@@ -444,6 +446,7 @@ export default function LoanDetail() {
               onEdit={setEditingPayment}
               onDelete={(row) => {
                 setDeleteReason('');
+                setDeleteError(null);
                 setDeleting(row);
               }}
             />
@@ -579,16 +582,30 @@ export default function LoanDetail() {
         size="sm"
         footer={
           <>
-            <button type="button" className="btn btn-outline" onClick={() => setDeleting(null)}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setDeleting(null)}
+              disabled={deletingPayment}
+            >
               Keep it
             </button>
             <button
               type="button"
               className="btn btn-danger"
+              disabled={deletingPayment}
               onClick={async () => {
-                await deletePayment(deleting.id, deleteReason.trim() || null);
-                setDeleting(null);
-                refreshAll();
+                setDeletingPayment(true);
+                setDeleteError(null);
+                try {
+                  await deletePayment(deleting.id, deleteReason.trim() || null);
+                  setDeleting(null);
+                  refreshAll();
+                } catch (err) {
+                  setDeleteError(err.message);
+                } finally {
+                  setDeletingPayment(false);
+                }
               }}
             >
               Delete payment
@@ -610,6 +627,11 @@ export default function LoanDetail() {
           onChange={(event) => setDeleteReason(event.target.value)}
           placeholder="e.g. recorded twice by mistake"
         />
+        {deleteError && (
+          <p role="alert" className="mt-4 rounded-xl bg-red-soft px-4 py-3 text-sm">
+            {deleteError}
+          </p>
+        )}
       </Modal>
     </div>
   );

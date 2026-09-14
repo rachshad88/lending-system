@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ErrorNote, Icon, SectionCard } from './ui';
 import { useAsync } from '../lib/useAsync';
-import { getSettings, listGoneQuiet } from '../lib/api';
+import { getSettingsCached, listGoneQuiet } from '../lib/api';
 import { formatDate, peso } from '../lib/format';
 import { quietDays, quietTone } from '../lib/risk';
 
@@ -17,10 +17,15 @@ function telHref(number) {
  * that actually gets money back in.
  */
 export default function GoneQuiet() {
-  const settings = useAsync(getSettings, []);
+  const settings = useAsync(getSettingsCached, []);
   const threshold = Number(settings.data?.gone_quiet_days) || 3;
 
-  const list = useAsync(() => listGoneQuiet({ minDays: threshold, limit: 8 }), [threshold]);
+  // Waiting for the configured threshold, otherwise this fetches once with the
+  // fallback and again with the real value, and briefly shows the wrong people.
+  const list = useAsync(
+    () => (settings.loading ? Promise.resolve(null) : listGoneQuiet({ minDays: threshold, limit: 8 })),
+    [settings.loading, threshold]
+  );
   const rows = list.data ?? [];
 
   return (
@@ -32,7 +37,7 @@ export default function GoneQuiet() {
         <ErrorNote error={list.error} onRetry={list.reload} />
       </div>
 
-      {list.loading ? (
+      {settings.loading || list.loading ? (
         <div className="space-y-2 p-4 sm:p-5">
           <div className="skeleton h-14" />
           <div className="skeleton h-14" />

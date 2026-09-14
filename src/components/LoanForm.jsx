@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import { Spinner } from './ui';
 import { useAsync } from '../lib/useAsync';
-import { getSettings, listMemberOptions } from '../lib/api';
+import { getSettingsCached, listMemberOptions } from '../lib/api';
 import { addDays, formatDate, peso, todayISO } from '../lib/format';
 
 /** Pass `loan` to correct an existing one; leave it out to release a new one. */
@@ -14,7 +14,7 @@ export default function LoanForm({
   memberName,
   loan = null,
 }) {
-  const { data: settings } = useAsync(getSettings, []);
+  const { data: settings } = useAsync(getSettingsCached, []);
   const editing = Boolean(loan);
   // While editing, the picker is always offered — reassigning a loan released
   // against the wrong member is the main reason to open this form again.

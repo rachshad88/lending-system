@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import GoneQuiet from '../components/GoneQuiet';
 import PaymentDialog from '../components/PaymentDialog';
@@ -6,10 +6,10 @@ import StatCard from '../components/StatCard';
 import { ErrorNote, Icon, SectionCard, Spinner } from '../components/ui';
 import { useAsync } from '../lib/useAsync';
 import {
+  ensureMaintenance,
   getIncomeSeries,
   getKpis,
   getPeriodStats,
-  runMaintenance,
 } from '../lib/api';
 import {
   addDays,
@@ -109,7 +109,19 @@ function MiniStat({ label, value, sub, tone = 'ink' }) {
 }
 
 export default function Dashboard() {
-  const today = useMemo(() => todayISO(), []);
+  // The server's figures roll over at Manila midnight, so a dashboard left open
+  // overnight has to roll over with them instead of pinning the mount date.
+  const [today, setToday] = useState(todayISO);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setToday((current) => {
+        const next = todayISO();
+        return next === current ? current : next;
+      });
+    }, 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [preset, setPreset] = useState('day');
   const [granularity, setGranularity] = useState('day');
   const [paying, setPaying] = useState(false);
@@ -117,10 +129,10 @@ export default function Dashboard() {
 
   const range = useMemo(() => buildRange(preset, today), [preset, today]);
 
-  // One maintenance pass per dashboard load keeps overdue penalties and
-  // write-off flags current without needing a scheduled job.
+  // One maintenance pass per session keeps overdue penalties and write-off
+  // flags current without needing a scheduled job.
   const kpis = useAsync(async () => {
-    await runMaintenance().catch(() => null);
+    await ensureMaintenance();
     return getKpis();
   }, []);
 

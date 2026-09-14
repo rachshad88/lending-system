@@ -14,11 +14,11 @@ import { useAsync } from '../lib/useAsync';
 import {
   confirmWriteOff,
   dismissWriteOff,
-  getSettings,
+  ensureMaintenance,
+  getSettingsCached,
   listGoneQuiet,
   listWriteOffs,
   reopenLoan,
-  runMaintenance,
 } from '../lib/api';
 import { formatDate, formatDateTime, peso } from '../lib/format';
 import { quietDays, quietTone } from '../lib/risk';
@@ -116,10 +116,10 @@ export default function WriteOffs() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const settings = useAsync(getSettings, []);
+  const settings = useAsync(getSettingsCached, []);
   const list = useAsync(async () => {
     if (tab === 'slipping') return [];
-    await runMaintenance().catch(() => null);
+    await ensureMaintenance();
     return listWriteOffs(tab);
   }, [tab]);
 
@@ -188,7 +188,7 @@ export default function WriteOffs() {
             type="button"
             onClick={() => setTab(item.id)}
             aria-pressed={tab === item.id}
-            className={`pill min-h-[36px] shrink-0 px-3.5 transition-colors ${
+            className={`pill pill-btn min-h-[36px] shrink-0 px-3.5 transition-colors ${
               tab === item.id ? 'pill-blue' : 'pill-grey hover:bg-[#e6e9f1]'
             }`}
           >
@@ -201,7 +201,15 @@ export default function WriteOffs() {
 
       <SectionCard bodyClass="divide-y divide-[#eef0f6]">
         {tab === 'slipping' ? (
-          <SlippingList quietThreshold={quietThreshold} />
+          // Mounting before the configured threshold arrives would fetch the
+          // list once with the fallback and again with the real value.
+          settings.loading ? (
+            <div className="p-4">
+              <SkeletonRows rows={4} />
+            </div>
+          ) : (
+            <SlippingList quietThreshold={quietThreshold} />
+          )
         ) : list.loading ? (
           <div className="p-4">
             <SkeletonRows rows={4} />

@@ -1,4 +1,4 @@
-import { plainAmount } from './format';
+import { formatDateTime, plainAmount, todayISO } from './format';
 
 /**
  * Both exporters consume the same report shape, so a PDF and an Excel file of
@@ -19,8 +19,10 @@ function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+// Manila, not UTC: an export run before 8am would otherwise be filed under
+// yesterday's date while every date inside it reads today.
 function stamp() {
-  return new Date().toISOString().slice(0, 10);
+  return todayISO();
 }
 
 function cellText(row, column) {
@@ -117,7 +119,7 @@ export async function exportReportToPdf(report) {
   doc.setFontSize(9);
   doc.setTextColor(103, 104, 121);
   if (report.subtitle) doc.text(report.subtitle, margin, 82);
-  doc.text(`Generated ${new Date().toLocaleString('en-PH')}`, pageWidth - margin, 46, {
+  doc.text(`Generated ${formatDateTime(new Date())}`, pageWidth - margin, 46, {
     align: 'right',
   });
   doc.setTextColor(43, 45, 54);

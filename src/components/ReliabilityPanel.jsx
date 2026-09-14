@@ -1,6 +1,6 @@
 import { Icon, SectionCard } from './ui';
 import { useAsync } from '../lib/useAsync';
-import { getMemberReliability, getSettings } from '../lib/api';
+import { getMemberReliability, getSettingsCached } from '../lib/api';
 import { peso } from '../lib/format';
 import { GRADE_LABELS, GRADE_PILLS, reliabilityGrade, suggestedCeiling } from '../lib/risk';
 
@@ -20,7 +20,7 @@ function Figure({ label, value, hint }) {
  * only the headline; the figures under it are what the call is actually made on.
  */
 export default function ReliabilityPanel({ memberId }) {
-  const settings = useAsync(getSettings, []);
+  const settings = useAsync(getSettingsCached, []);
   const facts = useAsync(() => getMemberReliability(memberId), [memberId]);
 
   if (facts.loading) {
