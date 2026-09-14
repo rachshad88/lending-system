@@ -1,0 +1,324 @@
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows, Spinner } from '../components/ui';
+import { useAsync } from '../lib/useAsync';
+import {
+  closeCashDay,
+  getCashReconciliation,
+  getPeriodStats,
+  listCashReconciliations,
+  listUnclosedCashDays,
+} from '../lib/api';
+import { formatDate, formatDateTime, peso, todayISO } from '../lib/format';
+
+/** A `?date=` link is user-editable, so only a real past-or-today date is honoured. */
+function initialDate(param, today) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(param ?? '') && param <= today ? param : today;
+}
+
+/** Green when the drawer matches, amber for a small gap, red past that. */
+function differenceTone(difference) {
+  const value = Math.abs(Number(difference));
+  if (value < 0.005) return 'text-green';
+  if (value <= 20) return 'text-amber';
+  return 'text-red';
+}
+
+export default function CashReconciliation() {
+  const today = todayISO();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [date, setDateState] = useState(() => initialDate(searchParams.get('date'), today));
+  const setDate = (next) => {
+    setDateState(next);
+    setCounted('');
+    setNote('');
+    setError(null);
+    setSearchParams(next === today ? {} : { date: next }, { replace: true });
+  };
+  const [counted, setCounted] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const closed = useAsync(() => getCashReconciliation(date), [date]);
+  const expected = useAsync(() => getPeriodStats(date, date), [date]);
+  const history = useAsync(() => listCashReconciliations({ limit: 14 }), []);
+  const unclosed = useAsync(listUnclosedCashDays, []);
+  const unclosedDays = unclosed.data ?? [];
+
+  const existing = closed.data;
+  const expectedAmount = existing ? Number(existing.expected_amount) : Number(expected.data?.collected ?? 0);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const value = Number(counted);
+    if (counted === '' || Number.isNaN(value) || value < 0) {
+      setError('Enter the amount counted.');
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await closeCashDay({ businessDate: date, countedAmount: value, note: note.trim() });
+      setCounted('');
+      setNote('');
+      closed.reload();
+      history.reload();
+      unclosed.reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = () => {
+    setCounted(String(Number(existing.counted_amount).toFixed(2)));
+    setNote(existing.note ?? '');
+    setError(null);
+  };
+
+  return (
+    <div className="space-y-5">
+      <header>
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">Cash reconciliation</h1>
+        <p className="text-muted">
+          At the end of the day, count what is actually in hand and check it against what the system
+          says came in. Closing a day again — say, after fixing a payment — recomputes the expected
+          figure but keeps the day's history.
+        </p>
+      </header>
+
+      <SectionCard title="1. Pick the day" bodyClass="p-4 sm:p-5">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="label" htmlFor="cash-date">
+              Business date
+            </label>
+            <input
+              id="cash-date"
+              className="input"
+              type="date"
+              value={date}
+              max={today}
+              onChange={(event) => setDate(event.target.value)}
+            />
+          </div>
+          {date !== today && (
+            <button type="button" className="pill pill-btn pill-grey min-h-[38px] px-3" onClick={() => setDate(today)}>
+              Today
+            </button>
+          )}
+        </div>
+
+        {unclosedDays.length > 0 && (
+          <div className="mt-4 rounded-xl border border-red/25 bg-red-soft p-3">
+            <p className="text-sm font-bold">
+              {unclosedDays.length === 1
+                ? '1 past day still needs a count'
+                : `${unclosedDays.length} past days still need a count`}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {unclosedDays.slice(0, 12).map((day) => (
+                <button
+                  key={day.business_date}
+                  type="button"
+                  onClick={() => setDate(day.business_date)}
+                  aria-pressed={date === day.business_date}
+                  className={`pill pill-btn min-h-[32px] px-3 transition-colors ${
+                    date === day.business_date ? 'pill-blue' : 'bg-white text-ink hover:text-brand'
+                  }`}
+                >
+                  {formatDate(day.business_date)} · {peso(day.expected_amount)}
+                </button>
+              ))}
+              {unclosedDays.length > 12 && (
+                <span className="self-center text-xs font-semibold text-muted">
+                  +{unclosedDays.length - 12} older
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title={existing ? 'Already closed' : '2. Count the drawer'}
+        subtitle={formatDate(date)}
+        bodyClass="p-4 sm:p-5"
+      >
+        {closed.loading || expected.loading ? (
+          <SkeletonRows rows={2} />
+        ) : (
+          <>
+            <div className="mb-4 grid grid-cols-2 gap-3 rounded-xl bg-canvas p-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-faint">
+                  {existing ? 'Expected (at closing)' : 'Expected'}
+                </p>
+                <p className="tnum mt-1 text-lg font-extrabold">{peso(expectedAmount)}</p>
+              </div>
+              {existing && (
+                <>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-faint">Counted</p>
+                    <p className="tnum mt-1 text-lg font-extrabold">{peso(existing.counted_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-faint">Difference</p>
+                    <p className={`tnum mt-1 text-lg font-extrabold ${differenceTone(existing.difference)}`}>
+                      {Number(existing.difference) > 0 ? '+' : ''}
+                      {peso(existing.difference)}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {existing && (
+              <p className="mb-4 text-sm text-muted">
+                Closed {formatDateTime(existing.closed_at)}
+                {existing.note && (
+                  <>
+                    {' · '}
+                    <span className="font-semibold">Note:</span> {existing.note}
+                  </>
+                )}
+              </p>
+            )}
+
+            {existing && counted === '' ? (
+              <button type="button" className="btn btn-outline" onClick={startEdit}>
+                <Icon name="edit" size={16} />
+                Recount / correct this day
+              </button>
+            ) : (
+              <form onSubmit={submit} noValidate className="space-y-4">
+                <div>
+                  <label className="label" htmlFor="cash-counted">
+                    Amount counted <span className="text-red">*</span>
+                  </label>
+                  <input
+                    id="cash-counted"
+                    className="input tnum text-lg font-bold"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={counted}
+                    onChange={(event) => setCounted(event.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="pill pill-btn pill-grey mt-2 min-h-[32px] px-3"
+                    onClick={() => setCounted(expectedAmount.toFixed(2))}
+                  >
+                    Matches expected {peso(expectedAmount)}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="label" htmlFor="cash-note">
+                    Note
+                  </label>
+                  <input
+                    id="cash-note"
+                    className="input"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder="Optional, e.g. reason for a shortage"
+                  />
+                </div>
+
+                {counted !== '' && !Number.isNaN(Number(counted)) && (
+                  <p className={`text-sm font-semibold ${differenceTone(Number(counted) - expectedAmount)}`}>
+                    {Number(counted) - expectedAmount === 0
+                      ? 'Matches exactly.'
+                      : Number(counted) - expectedAmount > 0
+                        ? `${peso(Number(counted) - expectedAmount)} over.`
+                        : `${peso(Math.abs(Number(counted) - expectedAmount))} short.`}
+                  </p>
+                )}
+
+                <ErrorNote error={error} />
+
+                <div className="flex flex-wrap gap-2">
+                  <button type="submit" className="btn btn-primary" disabled={busy}>
+                    {busy ? (
+                      <Spinner size={18} label="Saving" />
+                    ) : existing ? (
+                      'Save correction'
+                    ) : (
+                      'Close the day'
+                    )}
+                  </button>
+                  {existing && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setCounted('');
+                        setNote('');
+                        setError(null);
+                      }}
+                      disabled={busy}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+          </>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Recent closes" bodyClass="overflow-x-auto">
+        {history.loading ? (
+          <div className="p-4">
+            <SkeletonRows rows={4} />
+          </div>
+        ) : history.error ? (
+          <div className="p-4">
+            <ErrorNote error={history.error} onRetry={history.reload} />
+          </div>
+        ) : (history.data ?? []).length === 0 ? (
+          <EmptyState icon="wallet" title="No day has been closed yet" hint="Close today's cash count above to start the history." />
+        ) : (
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-faint">
+                <th className="px-4 py-2.5 sm:px-5">Date</th>
+                <th className="px-4 py-2.5 text-right">Expected</th>
+                <th className="px-4 py-2.5 text-right">Counted</th>
+                <th className="px-4 py-2.5 text-right">Difference</th>
+                <th className="px-4 py-2.5 sm:px-5">Note</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#eef0f6]">
+              {history.data.map((row) => (
+                <tr key={row.business_date}>
+                  <td className="px-4 py-2.5 font-semibold sm:px-5">
+                    <button type="button" className="hover:text-brand" onClick={() => setDate(row.business_date)}>
+                      {formatDate(row.business_date)}
+                    </button>
+                  </td>
+                  <td className="tnum px-4 py-2.5 text-right">{peso(row.expected_amount)}</td>
+                  <td className="tnum px-4 py-2.5 text-right">{peso(row.counted_amount)}</td>
+                  <td className={`tnum px-4 py-2.5 text-right font-semibold ${differenceTone(row.difference)}`}>
+                    {Number(row.difference) > 0 ? '+' : ''}
+                    {peso(row.difference)}
+                  </td>
+                  <td className="max-w-[220px] truncate px-4 py-2.5 text-muted sm:px-5" title={row.note ?? ''}>
+                    {row.note ?? '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </SectionCard>
+    </div>
+  );
+}

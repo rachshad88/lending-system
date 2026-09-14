@@ -2,9 +2,18 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LoanForm from '../components/LoanForm';
 import Pagination from '../components/Pagination';
-import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows, StatusPill } from '../components/ui';
+import {
+  EmptyState,
+  ErrorNote,
+  Icon,
+  SectionCard,
+  SkeletonRows,
+  Spinner,
+  StatusPill,
+} from '../components/ui';
 import { useAsync, useDebounced } from '../lib/useAsync';
-import { createLoan, getSettingsCached, listLoans } from '../lib/api';
+import { createLoan, getSettingsCached, listLoans, listRouteSheetLoans } from '../lib/api';
+import { exportRouteSheetPdf } from '../lib/exporters';
 import { formatDate, peso } from '../lib/format';
 import { quietDays, quietTone } from '../lib/risk';
 
@@ -74,6 +83,8 @@ export default function Loans() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [printError, setPrintError] = useState(null);
   const debouncedSearch = useDebounced(search);
   const wide = useIsWideScreen();
 
@@ -97,6 +108,26 @@ export default function Loans() {
 
   const rows = data?.rows ?? [];
 
+  const printRouteSheet = async () => {
+    setPrinting(true);
+    setPrintError(null);
+    try {
+      const [routeRows, businessSettings] = await Promise.all([
+        listRouteSheetLoans(),
+        getSettingsCached().catch(() => null),
+      ]);
+      if (!routeRows.length) {
+        setPrintError('No active loan has a balance left to collect, so there is no route to print.');
+        return;
+      }
+      await exportRouteSheetPdf({ rows: routeRows, businessName: businessSettings?.business_name });
+    } catch (err) {
+      setPrintError(err.message);
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -104,11 +135,31 @@ export default function Loans() {
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">Loans</h1>
           <p className="text-muted">Find a loan to record a collection or check a balance.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-          <Icon name="plus" size={18} />
-          New loan
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={printRouteSheet}
+            disabled={printing}
+            title="PDF of every active loan still owing, one page per TODA, with a blank column to write collections in"
+          >
+            {printing ? (
+              <Spinner size={18} label="Building route sheet" />
+            ) : (
+              <>
+                <Icon name="download" size={17} />
+                Route sheet
+              </>
+            )}
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
+            <Icon name="plus" size={18} />
+            New loan
+          </button>
+        </div>
       </header>
+
+      <ErrorNote error={printError} />
 
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
         {VIEWS.map((view) => (

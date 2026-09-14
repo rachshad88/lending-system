@@ -5,6 +5,7 @@ import { useAsync } from '../lib/useAsync';
 import {
   getIncomeSeries,
   getPeriodStats,
+  getSettingsCached,
   reportLoans,
   reportMembers,
   reportPayments,
@@ -199,7 +200,11 @@ export default function Reports() {
     setBusy(format);
     setError(null);
     try {
-      const report = await buildReport();
+      const [report, businessSettings] = await Promise.all([
+        buildReport(),
+        getSettingsCached().catch(() => null),
+      ]);
+      report.businessName = businessSettings?.business_name;
       if (!report.rows.length) {
         setError('There is nothing to export for this selection.');
         return;

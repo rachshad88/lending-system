@@ -87,6 +87,8 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [lockedUntil, setLockedUntil] = useState(null);
   const [now, setNow] = useState(() => Date.now());
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  const [errorShake, setErrorShake] = useState(0);
 
   useEffect(() => {
     if (!lockedUntil) return;
@@ -104,12 +106,19 @@ export default function Login() {
   // attempt during a lock no matter what this page does.
   const locked = lockedUntil !== null && now < lockedUntil;
 
+  // A fresh key re-mounts the banner so the shake replays on every new error,
+  // not just the first one.
+  const fail = (message) => {
+    setError(message);
+    setErrorShake((n) => n + 1);
+  };
+
   const onSubmit = async (event) => {
     event.preventDefault();
     if (locked) return;
     setError(null);
     if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+      fail('Please enter your email and password.');
       return;
     }
     setBusy(true);
@@ -123,7 +132,7 @@ export default function Login() {
         setPassword('');
       } else if (err.code === 'invalid_credentials') {
         const left = err.attemptsLeft;
-        setError(
+        fail(
           `That email and password combination does not match an account.${
             left
               ? ` ${left} ${left === 1 ? 'attempt' : 'attempts'} left before sign-in is paused for ${formatDuration(
@@ -133,12 +142,18 @@ export default function Login() {
           }`
         );
       } else if (err.code === 'bad_request') {
-        setError('Please enter your email and password.');
+        fail('Please enter your email and password.');
       } else {
-        setError(err.message);
+        fail(err.message);
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  const trackCapsLock = (event) => {
+    if (typeof event.getModifierState === 'function') {
+      setCapsLockOn(event.getModifierState('CapsLock'));
     }
   };
 
@@ -154,14 +169,38 @@ export default function Login() {
     <div className="min-h-screen lg:grid lg:grid-cols-2">
       {/* Brand panel */}
       <div
-        className="relative hidden flex-col justify-between p-10 lg:flex"
+        className="relative hidden flex-col justify-between overflow-hidden p-10 lg:flex"
         style={{
           background:
             'radial-gradient(700px 400px at 20% 10%, #0073ea 0%, transparent 60%), #1f2b3e',
         }}
       >
-        <Link to="/" className="flex items-center gap-3 text-white">
-          <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-11 w-11" />
+        <div className="pointer-events-none absolute inset-0">
+          <span
+            className="blob"
+            style={{
+              top: '-10%',
+              right: '-8%',
+              width: 320,
+              height: 320,
+              background: 'rgb(0 151 173 / 0.35)',
+            }}
+          />
+          <span
+            className="blob"
+            style={{
+              bottom: '-14%',
+              left: '-6%',
+              width: 280,
+              height: 280,
+              background: 'rgb(0 115 234 / 0.3)',
+              animationDelay: '-4s',
+            }}
+          />
+        </div>
+
+        <Link to="/" className="hero-in relative flex items-center gap-3 text-white">
+          <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="breathe h-11 w-11" />
           <span className="leading-tight">
             <span className="block font-extrabold">DRL Lending</span>
             <span className="block text-[10px] font-bold tracking-[0.18em] text-white/50">
@@ -170,17 +209,20 @@ export default function Login() {
           </span>
         </Link>
 
-        <div className="max-w-md">
-          <h2 className="text-4xl font-extrabold leading-tight tracking-[-0.03em] text-white">
+        <div className="relative max-w-md">
+          <h2
+            className="hero-in text-4xl font-extrabold leading-tight tracking-[-0.03em] text-white"
+            style={{ animationDelay: '90ms' }}
+          >
             Your whole book, in one place.
           </h2>
-          <p className="mt-4 text-lg text-white/70">
+          <p className="hero-in mt-4 text-lg text-white/70" style={{ animationDelay: '170ms' }}>
             Principal out on the street, income earned, who paid today and who did not. Updated the
             moment you record a collection.
           </p>
         </div>
 
-        <p className="flex items-center gap-2 text-sm text-white/50">
+        <p className="hero-in relative flex items-center gap-2 text-sm text-white/50" style={{ animationDelay: '250ms' }}>
           <Icon name="shield" size={16} />
           Records are visible only to signed-in admins.
         </p>
@@ -189,8 +231,8 @@ export default function Login() {
       {/* Form */}
       <div className="grid min-h-screen items-start justify-items-center bg-canvas px-4 pb-10 pt-16 lg:min-h-0 lg:items-center lg:pt-10">
         <div className="w-full max-w-sm">
-          <Link to="/" className="mb-8 inline-flex items-center gap-2.5 lg:hidden">
-            <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-11 w-11" />
+          <Link to="/" className="hero-in mb-8 inline-flex items-center gap-2.5 lg:hidden">
+            <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="breathe h-11 w-11" />
             <span className="leading-tight">
               <span className="block font-extrabold">DRL Lending</span>
               <span className="block text-[10px] font-bold tracking-[0.18em] text-faint">
@@ -199,11 +241,15 @@ export default function Login() {
             </span>
           </Link>
 
-          <h1 className="text-2xl font-extrabold tracking-tight">Sign in</h1>
-          <p className="mt-1.5 text-muted">Admin access only.</p>
+          <h1 className="hero-in text-2xl font-extrabold tracking-tight" style={{ animationDelay: '40ms' }}>
+            Sign in
+          </h1>
+          <p className="hero-in mt-1.5 text-muted" style={{ animationDelay: '80ms' }}>
+            Admin access only.
+          </p>
 
           {idleSignOut && (
-            <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-amber/40 bg-amber-soft px-4 py-3 text-sm">
+            <div className="slide-down mt-5 flex items-start gap-2.5 rounded-xl border border-amber/40 bg-amber-soft px-4 py-3 text-sm">
               <Icon name="clock" size={17} className="mt-0.5 shrink-0 text-amber" />
               <span>You were signed out after an hour of inactivity.</span>
             </div>
@@ -212,7 +258,7 @@ export default function Login() {
           {locked && (
             <div
               role="alert"
-              className="mt-5 flex items-start gap-2.5 rounded-xl border border-amber/40 bg-amber-soft px-4 py-3 text-sm"
+              className="slide-down mt-5 flex items-start gap-2.5 rounded-xl border border-amber/40 bg-amber-soft px-4 py-3 text-sm"
             >
               <Icon name="clock" size={17} className="mt-0.5 shrink-0 text-amber" />
               <span>
@@ -223,7 +269,7 @@ export default function Login() {
           )}
 
           <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
-            <div>
+            <div className="hero-in" style={{ animationDelay: '120ms' }}>
               <label className="label" htmlFor="email">
                 Email
               </label>
@@ -243,7 +289,7 @@ export default function Login() {
               />
             </div>
 
-            <div>
+            <div className="hero-in" style={{ animationDelay: '160ms' }}>
               <label className="label" htmlFor="password">
                 Password
               </label>
@@ -256,35 +302,50 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  onKeyUp={trackCapsLock}
+                  onKeyDown={trackCapsLock}
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute inset-y-0 right-0 grid w-11 place-items-center text-faint transition-colors hover:text-muted"
+                  className="absolute inset-y-0 right-0 grid w-11 place-items-center text-faint transition-colors hover:scale-110 hover:text-muted active:scale-95"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                  <span key={showPassword ? 'on' : 'off'} className="pop">
+                    <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                  </span>
                 </button>
               </div>
+              {capsLockOn && (
+                <p className="slide-down mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber">
+                  <Icon name="risk" size={13} />
+                  Caps Lock is on
+                </p>
+              )}
             </div>
 
             {error && (
-              <p role="alert" className="rounded-xl bg-red-soft px-4 py-3 text-sm text-ink">
+              <p key={errorShake} role="alert" className="shake rounded-xl bg-red-soft px-4 py-3 text-sm text-ink">
                 {error}
               </p>
             )}
 
-            <button type="submit" className="btn btn-primary w-full" disabled={busy || locked}>
+            <button
+              type="submit"
+              className="btn btn-primary btn-shine w-full"
+              disabled={busy || locked}
+            >
               {busy ? <Spinner size={18} label="Signing in" /> : 'Sign in'}
             </button>
           </form>
 
           <Link
             to="/"
-            className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-ink"
+            className="hero-in group mt-6 inline-flex items-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-ink"
+            style={{ animationDelay: '220ms' }}
           >
-            <Icon name="arrowLeft" size={16} />
+            <Icon name="arrowLeft" size={16} className="transition-transform group-hover:-translate-x-1" />
             Back to the site
           </Link>
         </div>

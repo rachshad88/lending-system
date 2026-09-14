@@ -9,6 +9,7 @@ import {
   Icon,
   PageLoader,
   SectionCard,
+  Spinner,
   StatusPill,
 } from '../components/ui';
 import { useAsync } from '../lib/useAsync';
@@ -19,8 +20,10 @@ import {
   getLoanAudit,
   getLoanPayments,
   getPaymentAudit,
+  getSettingsCached,
   updateLoan,
 } from '../lib/api';
+import { exportLoanStatementPdf } from '../lib/exporters';
 import { addDays, formatDate, formatDateTime, peso, todayISO } from '../lib/format';
 
 /* ------------------------------------------------------------------- strip */
@@ -276,6 +279,8 @@ export default function LoanDetail() {
   const [deleteLoanError, setDeleteLoanError] = useState(null);
   const [deletingLoan, setDeletingLoan] = useState(false);
   const [flash, setFlash] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(null);
 
   const loan = useAsync(() => getLoan(id), [id]);
   const payments = useAsync(() => getLoanPayments(id), [id]);
@@ -301,6 +306,23 @@ export default function LoanDetail() {
     ...(audit.data ?? []).map((entry) => ({ ...entry, kind: 'payment' })),
     ...(loanAudit.data ?? []).map((entry) => ({ ...entry, kind: 'loan' })),
   ].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
+
+  const downloadStatement = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const businessSettings = await getSettingsCached().catch(() => null);
+      await exportLoanStatementPdf({
+        loan: l,
+        payments: payments.data ?? [],
+        businessName: businessSettings?.business_name,
+      });
+    } catch (err) {
+      setExportError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -336,6 +358,23 @@ export default function LoanDetail() {
           </div>
 
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={downloadStatement}
+              // the payment list is part of the statement, so wait until it has loaded
+              disabled={exporting || payments.loading || Boolean(payments.error)}
+              title="PDF for the member: terms, balance today and every payment"
+            >
+              {exporting ? (
+                <Spinner size={18} label="Building statement" />
+              ) : (
+                <>
+                  <Icon name="download" size={17} />
+                  Statement
+                </>
+              )}
+            </button>
             {l.status !== 'written_off' && (
               <button
                 type="button"
@@ -358,6 +397,12 @@ export default function LoanDetail() {
             )}
           </div>
         </div>
+
+        {exportError && (
+          <div className="mt-4">
+            <ErrorNote error={exportError} />
+          </div>
+        )}
 
         {flash && (
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-sm">

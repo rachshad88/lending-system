@@ -430,6 +430,11 @@ export async function closeCashDay({ businessDate, countedAmount, note }) {
   );
 }
 
+/** Past days with payments but no cash close, newest first. Today is excluded. */
+export async function listUnclosedCashDays() {
+  return unwrap(await supabase.rpc('unclosed_cash_days'));
+}
+
 export async function listCashReconciliations({ limit = 30 } = {}) {
   return unwrap(
     await supabase
@@ -441,6 +446,19 @@ export async function listCashReconciliations({ limit = 30 } = {}) {
 }
 
 /* ---------------------------------------------------------------- reports */
+
+/** Everyone the collector should visit: active loans still owing, grouped by TODA. */
+export async function listRouteSheetLoans() {
+  return unwrap(
+    await supabase
+      .from('loan_balances')
+      .select('loan_id, member_name, contact_number, toda, daily_due, arrears, balance, is_overdue')
+      .eq('status', 'active')
+      .gt('balance', 0)
+      .order('toda', { ascending: true, nullsFirst: false })
+      .order('member_name')
+  );
+}
 
 export async function reportMembers() {
   return unwrap(

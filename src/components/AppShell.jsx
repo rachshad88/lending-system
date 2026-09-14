@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon } from './ui';
+import SignOutSummary from './SignOutSummary';
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: 'dashboard', end: true },
   { to: '/app/members', label: 'Members', icon: 'members' },
   { to: '/app/loans', label: 'Loans', icon: 'loans' },
   { to: '/app/risk', label: 'Risk', icon: 'risk' },
+  { to: '/app/cash', label: 'Cash', icon: 'wallet' },
   { to: '/app/reports', label: 'Reports', icon: 'reports' },
 ];
 
@@ -26,6 +29,7 @@ function Logo({ compact = false }) {
 
 export default function AppShell() {
   const { user, signOut } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   return (
     <div className="min-h-screen lg:flex">
@@ -72,7 +76,7 @@ export default function AppShell() {
           </p>
           <button
             type="button"
-            onClick={signOut}
+            onClick={() => setLoggingOut(true)}
             className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold text-muted transition-colors hover:bg-[#f2f4f9] hover:text-ink"
           >
             <Icon name="logout" size={19} />
@@ -92,7 +96,7 @@ export default function AppShell() {
           </NavLink>
           <button
             type="button"
-            onClick={signOut}
+            onClick={() => setLoggingOut(true)}
             className="btn btn-ghost btn-sm"
             aria-label="Sign out"
           >
@@ -109,7 +113,7 @@ export default function AppShell() {
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
         aria-label="Main"
       >
         {NAV.map((item) => (
@@ -138,6 +142,12 @@ export default function AppShell() {
           </NavLink>
         ))}
       </nav>
+
+      <SignOutSummary
+        open={loggingOut}
+        onCancel={() => setLoggingOut(false)}
+        onSignOut={signOut}
+      />
     </div>
   );
 }

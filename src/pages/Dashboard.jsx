@@ -13,6 +13,7 @@ import {
   getIncomeSeries,
   getKpis,
   getPeriodStats,
+  listUnclosedCashDays,
 } from '../lib/api';
 import {
   addDays,
@@ -240,6 +241,8 @@ export default function Dashboard() {
   const [closingCash, setClosingCash] = useState(false);
 
   const cashClose = useAsync(() => getCashReconciliation(today), [today]);
+  const unclosed = useAsync(listUnclosedCashDays, [today]);
+  const unclosedDays = unclosed.data ?? [];
 
   const range = useMemo(() => buildRange(preset, today), [preset, today]);
 
@@ -337,6 +340,46 @@ export default function Dashboard() {
           </div>
           <Link to="/app/risk" className="btn btn-sm btn-outline bg-white">
             Review
+            <Icon name="chevronRight" size={15} />
+          </Link>
+        </div>
+      )}
+
+      {/* Past days that took payments but were never counted against the drawer */}
+      {unclosedDays.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-4 border-red/25 bg-red-soft p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-white text-red">
+            <Icon name="wallet" size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold">
+              {unclosedDays.length === 1
+                ? '1 past day was never cash-closed'
+                : `${fmtCount(unclosedDays.length)} past days were never cash-closed`}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {unclosedDays.slice(0, 4).map((day) => (
+                <Link
+                  key={day.business_date}
+                  to={`/app/cash?date=${day.business_date}`}
+                  className="pill pill-btn bg-white text-ink transition-colors hover:text-brand"
+                  title={`${fmtCount(day.payments_count)} payment(s) recorded`}
+                >
+                  {formatDate(day.business_date)} · {peso(day.expected_amount)}
+                </Link>
+              ))}
+              {unclosedDays.length > 4 && (
+                <span className="text-xs font-semibold text-muted">
+                  +{fmtCount(unclosedDays.length - 4)} more
+                </span>
+              )}
+            </div>
+          </div>
+          <Link
+            to={`/app/cash?date=${unclosedDays[0].business_date}`}
+            className="btn btn-sm btn-outline bg-white"
+          >
+            Count now
             <Icon name="chevronRight" size={15} />
           </Link>
         </div>
