@@ -86,7 +86,7 @@ function SlippingList({ quietThreshold }) {
           <p className="mt-0.5 text-sm text-muted">
             {loan.last_payment_date
               ? `Last paid ${formatDate(loan.last_payment_date)}`
-              : `Never paid — released ${formatDate(loan.start_date)}`}
+              : `Never paid, released ${formatDate(loan.start_date)}`}
             {Number(loan.arrears) > 0 && ` · ${peso(loan.arrears)} behind`}
           </p>
         </div>

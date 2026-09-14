@@ -135,7 +135,7 @@ export default function LoanForm({
               </option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.toda ? `${m.name} — ${m.toda}` : m.name}
+                  {m.toda ? `${m.name} (${m.toda})` : m.name}
                 </option>
               ))}
             </select>

@@ -106,7 +106,7 @@ export default function ReliabilityPanel({ memberId }) {
           <p className="text-sm font-semibold text-red">
             Not recommended for another loan
             {maxExposure != null && Number(data.current_exposure) >= Number(maxExposure)
-              ? ` — already at the ${peso(maxExposure)} exposure limit.`
+              ? `: already at the ${peso(maxExposure)} exposure limit.`
               : ' on this track record.'}
           </p>
         ) : (

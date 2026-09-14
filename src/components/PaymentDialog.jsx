@@ -107,7 +107,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
               {options.map((o) => (
                 <option key={o.loan_id} value={o.loan_id}>
                   {o.member_name}
-                  {o.toda ? ` (${o.toda})` : ''} — {peso(o.balance)} left
+                  {o.toda ? ` (${o.toda})` : ''}: {peso(o.balance)} left
                 </option>
               ))}
             </select>

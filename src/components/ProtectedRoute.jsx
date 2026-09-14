@@ -1,14 +1,13 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon, PageLoader } from './ui';
 
 export default function ProtectedRoute({ children }) {
   const { session, isAdmin, adminChecked, loading, signOut, isConfigured } = useAuth();
-  const location = useLocation();
 
   if (!isConfigured) return <Navigate to="/login" replace />;
   if (loading) return <PageLoader />;
-  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!session) return <Navigate to="/login" replace />;
   // Wait for the admin lookup, otherwise every sign-in flashes "no access"
   if (!adminChecked) return <PageLoader />;
 

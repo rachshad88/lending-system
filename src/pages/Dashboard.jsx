@@ -228,7 +228,7 @@ export default function Dashboard() {
           <StatCard
             label="Total ever lent"
             value={peso(k.principal_released)}
-            hint="Every loan ever released. Only grows — paying off a loan never reduces this."
+            hint="Every loan ever released. Only grows. Paying off a loan never reduces this."
             icon="loans"
             tone="brand"
             emphasis

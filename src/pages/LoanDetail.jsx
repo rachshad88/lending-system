@@ -61,7 +61,7 @@ function PaymentStrip({ loan, payments }) {
             <span
               key={day}
               className={`h-4 w-4 rounded-[3px] ${tone}`}
-              title={`${formatDate(day)} — ${paid ? 'paid' : future ? 'not due yet' : 'nothing collected'}`}
+              title={`${formatDate(day)}: ${paid ? 'paid' : future ? 'not due yet' : 'nothing collected'}`}
             />
           );
         })}
@@ -243,7 +243,7 @@ function AuditTrail({ rows }) {
               <p>
                 Removed <span className="tnum font-bold">{peso(entry.old_values?.amount)}</span>{' '}
                 dated {formatDate(entry.old_values?.payment_date)}
-                {entry.new_values?.reason && ` — ${entry.new_values.reason}`}
+                {entry.new_values?.reason && `: ${entry.new_values.reason}`}
               </p>
             )}
           </div>
@@ -464,7 +464,7 @@ export default function LoanDetail() {
         <p className="mb-3 text-sm text-muted">
           {hasPayments
             ? 'This loan has collections on record, so it cannot be deleted. That history has to stay. Write it off instead if the money will never be recovered.'
-            : 'Nothing has been collected yet, so this loan can still be removed outright — use it when the loan was released against the wrong member or never actually handed over.'}
+            : 'Nothing has been collected yet, so this loan can still be removed outright. Use it when the loan was released against the wrong member or never actually handed over.'}
         </p>
         <button
           type="button"

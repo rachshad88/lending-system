@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon, Spinner } from '../components/ui';
 
@@ -80,7 +80,6 @@ function SetupNotice() {
 
 export default function Login() {
   const { session, signIn, isConfigured, idleSignOut } = useAuth();
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -99,7 +98,7 @@ export default function Login() {
     return () => clearInterval(timer);
   }, [lockedUntil]);
 
-  if (session) return <Navigate to={location.state?.from ?? '/app'} replace />;
+  if (session) return <Navigate to="/app" replace />;
 
   // The countdown only keeps the button honest; the server refuses every
   // attempt during a lock no matter what this page does.

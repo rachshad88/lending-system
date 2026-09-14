@@ -72,7 +72,7 @@ export default function GoneQuiet() {
                   <p className="mt-0.5 text-sm text-muted">
                     {loan.last_payment_date
                       ? `Last paid ${formatDate(loan.last_payment_date)}`
-                      : `Never paid — released ${formatDate(loan.start_date)}`}
+                      : `Never paid, released ${formatDate(loan.start_date)}`}
                     {loan.toda ? ` · ${loan.toda}` : ''}
                   </p>
                 </div>
