@@ -1,8 +1,6 @@
 import { Icon, SectionCard } from './ui';
-import { useAsync } from '../lib/useAsync';
-import { getMemberReliability, getSettingsCached } from '../lib/api';
 import { peso } from '../lib/format';
-import { GRADE_LABELS, GRADE_PILLS, reliabilityGrade, suggestedCeiling } from '../lib/risk';
+import { GRADE_LABELS, GRADE_PILLS } from '../lib/risk';
 
 function Figure({ label, value, hint }) {
   return (
@@ -18,12 +16,12 @@ function Figure({ label, value, hint }) {
  * Decision support for the moment a member asks to borrow again — the most
  * frequent decision in a book where members cycle continuously. The grade is
  * only the headline; the figures under it are what the call is actually made on.
+ *
+ * Fetching lives in the parent (MemberDetail) so the same track record backs
+ * both this panel and the "Re-lend" button without a second round trip.
  */
-export default function ReliabilityPanel({ memberId }) {
-  const settings = useAsync(getSettingsCached, []);
-  const facts = useAsync(() => getMemberReliability(memberId), [memberId]);
-
-  if (facts.loading) {
+export default function ReliabilityPanel({ facts, loading, error, onRetry, verdict, ceiling, maxExposure }) {
+  if (loading) {
     return (
       <SectionCard title="Track record" bodyClass="p-4 sm:p-5">
         <div className="skeleton h-24" />
@@ -31,30 +29,25 @@ export default function ReliabilityPanel({ memberId }) {
     );
   }
 
-  if (facts.error) {
+  if (error) {
     return (
       <SectionCard title="Track record" bodyClass="p-4 sm:p-5">
         <p className="text-sm text-muted">
           Track record needs the risk-signals migration (`0004_risk_signals.sql`) to be run on the
           database first.
         </p>
-        <button type="button" className="btn btn-sm btn-outline mt-3" onClick={facts.reload}>
+        <button type="button" className="btn btn-sm btn-outline mt-3" onClick={onRetry}>
           Try again
         </button>
       </SectionCard>
     );
   }
 
-  const data = facts.data;
-  const goneQuietDays = Number(settings.data?.gone_quiet_days) || 3;
-  const maxExposure = settings.data?.max_exposure_per_member ?? null;
-  const verdict = reliabilityGrade(data, { goneQuietDays });
   if (!verdict) return null;
 
-  const ceiling = suggestedCeiling(data, verdict.grade, { maxExposure });
-  const avgDays = Number(data.avg_days_to_complete) || 0;
-  const avgTerm = Number(data.avg_term_days) || 0;
-  const completed = Number(data.loans_completed) || 0;
+  const avgDays = Number(facts.avg_days_to_complete) || 0;
+  const avgTerm = Number(facts.avg_term_days) || 0;
+  const completed = Number(facts.loans_completed) || 0;
 
   return (
     <SectionCard
@@ -73,7 +66,7 @@ export default function ReliabilityPanel({ memberId }) {
       </div>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-[#eef0f6] sm:grid-cols-3 sm:divide-y-0">
-        <Figure label="Loans finished" value={completed} hint={`${data.loans_total} taken in total`} />
+        <Figure label="Loans finished" value={completed} hint={`${facts.loans_total} taken in total`} />
         <Figure
           label="Days to repay"
           value={completed > 0 && avgDays ? `${avgDays} avg` : '—'}
@@ -81,18 +74,18 @@ export default function ReliabilityPanel({ memberId }) {
         />
         <Figure
           label="Longest silence"
-          value={`${data.longest_gap_days} days`}
+          value={`${facts.longest_gap_days} days`}
           hint="worst gap between payments"
         />
         <Figure
           label="Penalties"
-          value={data.penalties_incurred}
-          hint={Number(data.loans_written_off) > 0 ? `${data.loans_written_off} written off` : 'never written off'}
+          value={facts.penalties_incurred}
+          hint={Number(facts.loans_written_off) > 0 ? `${facts.loans_written_off} written off` : 'never written off'}
         />
-        <Figure label="Owes right now" value={peso(data.current_exposure)} hint={`${data.loans_active} active`} />
+        <Figure label="Owes right now" value={peso(facts.current_exposure)} hint={`${facts.loans_active} active`} />
         <Figure
           label="Biggest repaid"
-          value={peso(data.largest_completed_principal)}
+          value={peso(facts.largest_completed_principal)}
           hint="largest loan seen through"
         />
       </div>
@@ -105,7 +98,7 @@ export default function ReliabilityPanel({ memberId }) {
         ) : ceiling <= 0 ? (
           <p className="text-sm font-semibold text-red">
             Not recommended for another loan
-            {maxExposure != null && Number(data.current_exposure) >= Number(maxExposure)
+            {maxExposure != null && Number(facts.current_exposure) >= Number(maxExposure)
               ? `: already at the ${peso(maxExposure)} exposure limit.`
               : ' on this track record.'}
           </p>
@@ -115,7 +108,7 @@ export default function ReliabilityPanel({ memberId }) {
             <span className="tnum font-extrabold text-brand">{peso(ceiling)}</span>
             <span className="text-muted">
               {' '}
-              based on the {peso(data.largest_completed_principal)} they have already repaid
+              based on the {peso(facts.largest_completed_principal)} they have already repaid
               {maxExposure != null && `, within the ${peso(maxExposure)} limit per member`}.
             </span>
           </p>

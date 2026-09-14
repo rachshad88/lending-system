@@ -13,6 +13,7 @@ export default function LoanForm({
   memberId = null,
   memberName,
   loan = null,
+  suggestedPrincipal = null,
 }) {
   const { data: settings } = useAsync(getSettingsCached, []);
   const editing = Boolean(loan);
@@ -20,7 +21,9 @@ export default function LoanForm({
   // against the wrong member is the main reason to open this form again.
   const needsMemberPicker = editing || !memberId;
   const [pickedMemberId, setPickedMemberId] = useState(loan?.member_id ?? '');
-  const [principal, setPrincipal] = useState(loan ? String(loan.principal) : '');
+  const [principal, setPrincipal] = useState(
+    loan ? String(loan.principal) : suggestedPrincipal ? String(suggestedPrincipal) : ''
+  );
   const [term, setTerm] = useState(loan ? String(loan.term_days) : '');
   const [startDate, setStartDate] = useState(loan?.start_date ?? todayISO());
   const [note, setNote] = useState(loan?.note ?? '');
@@ -164,6 +167,11 @@ export default function LoanForm({
               placeholder="5000"
               required
             />
+            {suggestedPrincipal != null && !editing && (
+              <p className="mt-1 text-xs text-muted">
+                Prefilled from their track record. Change it if this loan should be different.
+              </p>
+            )}
           </div>
 
           <div>

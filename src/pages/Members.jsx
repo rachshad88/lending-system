@@ -4,8 +4,9 @@ import MemberForm from '../components/MemberForm';
 import Pagination from '../components/Pagination';
 import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows } from '../components/ui';
 import { useAsync, useDebounced } from '../lib/useAsync';
-import { createMember, listMembers } from '../lib/api';
+import { createMember, getMemberReliabilityBulk, getSettingsCached, listMembers } from '../lib/api';
 import { formatDate, initials } from '../lib/format';
+import { GRADE_LABELS, GRADE_PILLS, reliabilityGrade } from '../lib/risk';
 
 const PAGE_SIZE = 20;
 
@@ -15,6 +16,11 @@ function Avatar({ name }) {
       {initials(name)}
     </span>
   );
+}
+
+function ReliabilityBadge({ grade }) {
+  if (!grade) return null;
+  return <span className={`pill ${GRADE_PILLS[grade]}`}>{GRADE_LABELS[grade]}</span>;
 }
 
 export default function Members() {
@@ -29,6 +35,21 @@ export default function Members() {
   );
 
   const rows = data?.rows ?? [];
+  const rowIds = rows.map((m) => m.id);
+
+  const settings = useAsync(getSettingsCached, []);
+  const goneQuietDays = Number(settings.data?.gone_quiet_days) || 3;
+
+  // One extra round trip for the whole page instead of one per row.
+  const reliability = useAsync(
+    () => getMemberReliabilityBulk(rowIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rowIds.join(',')]
+  );
+  const gradeFor = (memberId) => {
+    const facts = reliability.data?.get(memberId);
+    return reliabilityGrade(facts ?? { loans_completed: 0 }, { goneQuietDays })?.grade;
+  };
 
   const onSearch = (event) => {
     setSearch(event.target.value);
@@ -102,7 +123,14 @@ export default function Members() {
                   >
                     <Avatar name={member.name} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-bold">{member.name}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="truncate font-bold">{member.name}</span>
+                        {reliability.loading ? (
+                          <span className="skeleton inline-block h-4 w-16 align-middle" />
+                        ) : (
+                          <ReliabilityBadge grade={gradeFor(member.id)} />
+                        )}
+                      </span>
                       <span className="block truncate text-sm text-muted">
                         {[member.toda, member.contact_number].filter(Boolean).join(' · ') ||
                           'No contact details'}
@@ -120,6 +148,7 @@ export default function Members() {
                 <thead>
                   <tr>
                     <th>Member</th>
+                    <th>Track record</th>
                     <th>Contact</th>
                     <th>TODA</th>
                     <th>Vehicle</th>
@@ -138,6 +167,13 @@ export default function Members() {
                           <Avatar name={member.name} />
                           {member.name}
                         </Link>
+                      </td>
+                      <td>
+                        {reliability.loading ? (
+                          <span className="skeleton inline-block h-5 w-20 align-middle" />
+                        ) : (
+                          <ReliabilityBadge grade={gradeFor(member.id)} />
+                        )}
                       </td>
                       <td className="tnum text-muted">{member.contact_number ?? '—'}</td>
                       <td className="text-muted">{member.toda ?? '—'}</td>

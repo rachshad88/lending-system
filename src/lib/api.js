@@ -79,6 +79,19 @@ export async function getMemberReliability(memberId) {
 }
 
 /**
+ * The same grading facts as `getMemberReliability`, for many members in one
+ * round trip — used to badge a page of the Members list. A member with no
+ * loans yet is simply absent from the result.
+ */
+export async function getMemberReliabilityBulk(memberIds) {
+  if (!memberIds.length) return new Map();
+  const rows = unwrap(
+    await supabase.rpc('member_reliability_bulk', { p_member_ids: memberIds })
+  );
+  return new Map(rows.map((row) => [row.member_id, row]));
+}
+
+/**
  * Live loans with nothing collected for `minDays`, quietest first. Ordering by
  * last_payment_date ascending is the same ranking as days-since-payment
  * descending, so the view needs no extra column. A loan that has never paid

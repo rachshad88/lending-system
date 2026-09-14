@@ -18,9 +18,12 @@ import {
   deleteMember,
   getMember,
   getMemberLoans,
+  getMemberReliability,
+  getSettingsCached,
   updateMember,
 } from '../lib/api';
 import { formatDate, initials, peso } from '../lib/format';
+import { reliabilityGrade, suggestedCeiling } from '../lib/risk';
 
 const PROFILE_FIELDS = [
   ['contact_number', 'Contact number'],
@@ -37,14 +40,22 @@ export default function MemberDetail() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [lending, setLending] = useState(false);
+  const [relending, setRelending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
 
   const member = useAsync(() => getMember(id), [id]);
   const loans = useAsync(() => getMemberLoans(id), [id]);
+  const settings = useAsync(getSettingsCached, []);
+  const reliability = useAsync(() => getMemberReliability(id), [id]);
 
   if (member.loading) return <PageLoader />;
   if (member.error) return <ErrorNote error={member.error} onRetry={member.reload} />;
+
+  const goneQuietDays = Number(settings.data?.gone_quiet_days) || 3;
+  const maxExposure = settings.data?.max_exposure_per_member ?? null;
+  const verdict = reliabilityGrade(reliability.data, { goneQuietDays });
+  const ceiling = verdict ? suggestedCeiling(reliability.data, verdict.grade, { maxExposure }) : null;
 
   const m = member.data;
   const rows = loans.data ?? [];
@@ -96,6 +107,17 @@ export default function MemberDetail() {
             <Icon name="edit" size={16} />
             Edit
           </button>
+          {ceiling > 0 && (
+            <button
+              type="button"
+              className="btn btn-success flex-1 sm:flex-none"
+              onClick={() => setRelending(true)}
+              title={`Track record suggests up to ${peso(ceiling)}`}
+            >
+              <Icon name="trendUp" size={18} />
+              Re-lend {peso(ceiling)}
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-primary flex-1 sm:flex-none"
@@ -182,7 +204,15 @@ export default function MemberDetail() {
         </div>
 
         <div className="space-y-5">
-          <ReliabilityPanel memberId={id} />
+          <ReliabilityPanel
+            facts={reliability.data}
+            loading={reliability.loading}
+            error={reliability.error}
+            onRetry={reliability.reload}
+            verdict={verdict}
+            ceiling={ceiling}
+            maxExposure={maxExposure}
+          />
 
           <SectionCard title="Profile" bodyClass="px-4 py-2 sm:px-5">
             <dl className="divide-y divide-[#eef0f6]">
@@ -244,6 +274,20 @@ export default function MemberDetail() {
           memberId={id}
           memberName={m.name}
           onClose={() => setLending(false)}
+          onSubmit={async (values) => {
+            const loanId = await createLoan({ memberId: id, ...values });
+            navigate(`/app/loans/${loanId}`);
+          }}
+        />
+      )}
+
+      {relending && (
+        <LoanForm
+          open
+          memberId={id}
+          memberName={m.name}
+          suggestedPrincipal={ceiling}
+          onClose={() => setRelending(false)}
           onSubmit={async (values) => {
             const loanId = await createLoan({ memberId: id, ...values });
             navigate(`/app/loans/${loanId}`);
