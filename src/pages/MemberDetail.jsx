@@ -25,9 +25,10 @@ import {
 import { formatDate, initials, peso } from '../lib/format';
 import { reliabilityGrade, suggestedCeiling } from '../lib/risk';
 
-// Below this, offering a one-tap re-lend isn't worth a shortcut over "New loan" —
-// the suggested amount is too small to matter as a quick action.
-const RELEND_MIN_CEILING = 3000;
+// The one-tap re-lend amount never exceeds this, even when the track record
+// would justify more — it is a quick shortcut, not the full ceiling. Edit the
+// principal in the form for anything larger.
+const RELEND_MAX_AMOUNT = 3000;
 
 const PROFILE_FIELDS = [
   ['contact_number', 'Contact number'],
@@ -60,6 +61,7 @@ export default function MemberDetail() {
   const maxExposure = settings.data?.max_exposure_per_member ?? null;
   const verdict = reliabilityGrade(reliability.data, { goneQuietDays });
   const ceiling = verdict ? suggestedCeiling(reliability.data, verdict.grade, { maxExposure }) : null;
+  const relendAmount = ceiling != null ? Math.min(ceiling, RELEND_MAX_AMOUNT) : null;
 
   const m = member.data;
   const rows = loans.data ?? [];
@@ -111,15 +113,19 @@ export default function MemberDetail() {
             <Icon name="edit" size={16} />
             Edit
           </button>
-          {ceiling >= RELEND_MIN_CEILING && (
+          {relendAmount > 0 && (
             <button
               type="button"
               className="btn btn-success flex-1 sm:flex-none"
               onClick={() => setRelending(true)}
-              title={`Track record suggests up to ${peso(ceiling)}`}
+              title={
+                ceiling > relendAmount
+                  ? `Track record suggests up to ${peso(ceiling)}; edit the amount for more`
+                  : `Track record suggests up to ${peso(ceiling)}`
+              }
             >
               <Icon name="trendUp" size={18} />
-              Re-lend {peso(ceiling)}
+              Re-lend {peso(relendAmount)}
             </button>
           )}
           <button
@@ -290,7 +296,7 @@ export default function MemberDetail() {
           open
           memberId={id}
           memberName={m.name}
-          suggestedPrincipal={ceiling}
+          suggestedPrincipal={relendAmount}
           onClose={() => setRelending(false)}
           onSubmit={async (values) => {
             const loanId = await createLoan({ memberId: id, ...values });
