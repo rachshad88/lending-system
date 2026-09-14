@@ -158,6 +158,33 @@ export function StatusPill({ status, children }) {
   );
 }
 
+export function Segmented({ options, value, onChange, ariaLabel }) {
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="inline-flex rounded-[10px] border border-line bg-canvas p-0.5"
+    >
+      {options.map((option) => (
+        <button
+          key={option.id}
+          role="tab"
+          type="button"
+          aria-selected={value === option.id}
+          onClick={() => onChange(option.id)}
+          className={`min-h-[34px] rounded-lg px-3 text-sm font-semibold transition-colors ${
+            value === option.id
+              ? 'bg-surface text-brand shadow-[0_1px_3px_rgba(27,31,46,0.12)]'
+              : 'text-muted hover:text-ink'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SectionCard({ title, subtitle, action, children, className = '', bodyClass = '' }) {
   return (
     <section className={`card ${className}`}>

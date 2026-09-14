@@ -26,6 +26,17 @@ export async function getIncomeSeries(from, to, granularity = 'day') {
   );
 }
 
+/** Scheduled vs. collected, bucketed by day, week or month. */
+export async function getAmortizationSeries(from, to, granularity = 'day') {
+  return unwrap(
+    await supabase.rpc('amortization_series', {
+      p_from: from,
+      p_to: to,
+      p_granularity: granularity,
+    })
+  );
+}
+
 /** Applies overdue penalties and flags write-off candidates. Safe to re-run. */
 export async function runMaintenance() {
   return unwrap(await supabase.rpc('run_maintenance'));

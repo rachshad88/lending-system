@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import MemberForm from '../components/MemberForm';
 import Pagination from '../components/Pagination';
 import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows } from '../components/ui';
@@ -28,6 +28,17 @@ export default function Members() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const debouncedSearch = useDebounced(search);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // A "?new=1" link (the dashboard's Add borrower button) opens the form once,
+  // then the param is dropped so refreshing or navigating back doesn't reopen it.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setCreating(true);
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data, error, loading, reload } = useAsync(
     () => listMembers({ search: debouncedSearch, page, pageSize: PAGE_SIZE }),

@@ -103,6 +103,12 @@ export function formatDateShort(iso) {
   return dateFormatter('en-PH', { month: 'short', day: 'numeric' }).format(parseDateOnly(iso));
 }
 
+/** "Week of Sep 8" — bucket is already the Monday that week starts on. */
+export function formatWeekLabel(iso) {
+  if (!iso) return '—';
+  return `Week of ${formatDateShort(iso)}`;
+}
+
 export function formatMonth(iso) {
   if (!iso) return '—';
   return dateFormatter('en-PH', { month: 'short', year: 'numeric' }).format(parseDateOnly(iso));

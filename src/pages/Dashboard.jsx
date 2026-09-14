@@ -4,7 +4,7 @@ import GoneQuiet from '../components/GoneQuiet';
 import Modal from '../components/Modal';
 import PaymentDialog from '../components/PaymentDialog';
 import StatCard from '../components/StatCard';
-import { ErrorNote, Icon, SectionCard, Spinner } from '../components/ui';
+import { ErrorNote, Icon, SectionCard, Segmented, Spinner } from '../components/ui';
 import { useAsync } from '../lib/useAsync';
 import {
   closeCashDay,
@@ -64,33 +64,6 @@ const PRESETS = [
   { id: 'week', label: 'Weekly' },
   { id: 'month', label: 'Monthly' },
 ];
-
-function Segmented({ options, value, onChange, ariaLabel }) {
-  return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      className="inline-flex rounded-[10px] border border-line bg-canvas p-0.5"
-    >
-      {options.map((option) => (
-        <button
-          key={option.id}
-          role="tab"
-          type="button"
-          aria-selected={value === option.id}
-          onClick={() => onChange(option.id)}
-          className={`min-h-[34px] rounded-lg px-3 text-sm font-semibold transition-colors ${
-            value === option.id
-              ? 'bg-surface text-brand shadow-[0_1px_3px_rgba(27,31,46,0.12)]'
-              : 'text-muted hover:text-ink'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function MiniStat({ label, value, sub, tone = 'ink' }) {
   const toneClass = {
@@ -293,10 +266,20 @@ export default function Dashboard() {
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">Dashboard</h1>
           <p className="text-muted">{formatDate(today, { weekday: 'long' })}</p>
         </div>
-        <button type="button" className="btn btn-success" onClick={() => setPaying(true)}>
-          <Icon name="peso" size={18} />
-          Record payment
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/app/amortization" className="btn btn-outline">
+            <Icon name="calendar" size={18} />
+            Amortization report
+          </Link>
+          <Link to="/app/members?new=1" className="btn btn-outline">
+            <Icon name="members" size={18} />
+            Add borrower
+          </Link>
+          <button type="button" className="btn btn-success" onClick={() => setPaying(true)}>
+            <Icon name="peso" size={18} />
+            Record payment
+          </button>
+        </div>
       </header>
 
       {flash && (

@@ -16,6 +16,7 @@ const Loans = lazy(() => import('./pages/Loans'));
 const LoanDetail = lazy(() => import('./pages/LoanDetail'));
 const WriteOffs = lazy(() => import('./pages/WriteOffs'));
 const CashReconciliation = lazy(() => import('./pages/CashReconciliation'));
+const AmortizationReport = lazy(() => import('./pages/AmortizationReport'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
 
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="loans/:id" element={<LoanDetail />} />
               <Route path="risk" element={<WriteOffs />} />
               <Route path="cash" element={<CashReconciliation />} />
+              <Route path="amortization" element={<AmortizationReport />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
             </Route>
