@@ -25,6 +25,10 @@ import {
 import { formatDate, initials, peso } from '../lib/format';
 import { reliabilityGrade, suggestedCeiling } from '../lib/risk';
 
+// Below this, offering a one-tap re-lend isn't worth a shortcut over "New loan" —
+// the suggested amount is too small to matter as a quick action.
+const RELEND_MIN_CEILING = 3000;
+
 const PROFILE_FIELDS = [
   ['contact_number', 'Contact number'],
   ['vehicle_number', 'Vehicle / body number'],
@@ -107,7 +111,7 @@ export default function MemberDetail() {
             <Icon name="edit" size={16} />
             Edit
           </button>
-          {ceiling > 0 && (
+          {ceiling >= RELEND_MIN_CEILING && (
             <button
               type="button"
               className="btn btn-success flex-1 sm:flex-none"
