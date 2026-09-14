@@ -406,6 +406,40 @@ export async function updateSettings(values) {
   return data;
 }
 
+/* --------------------------------------------------------------- cash count */
+
+/** The saved close for a business day, or null if it hasn't been closed yet. */
+export async function getCashReconciliation(businessDate) {
+  const { data, error } = await supabase
+    .from('cash_reconciliations')
+    .select('business_date, expected_amount, counted_amount, difference, note, closed_at')
+    .eq('business_date', businessDate)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** Closes (or re-closes) a business day against what `payments` says came in. */
+export async function closeCashDay({ businessDate, countedAmount, note }) {
+  return unwrap(
+    await supabase.rpc('close_cash_day', {
+      p_business_date: businessDate,
+      p_counted_amount: countedAmount,
+      p_note: note || null,
+    })
+  );
+}
+
+export async function listCashReconciliations({ limit = 30 } = {}) {
+  return unwrap(
+    await supabase
+      .from('cash_reconciliations')
+      .select('business_date, expected_amount, counted_amount, difference, note, closed_at')
+      .order('business_date', { ascending: false })
+      .limit(limit)
+  );
+}
+
 /* ---------------------------------------------------------------- reports */
 
 export async function reportMembers() {

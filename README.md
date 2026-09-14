@@ -146,6 +146,7 @@ payment is a single atomic transaction and the books cannot end up half-written:
 | `dashboard_kpis` / `period_stats` / `income_series` | Aggregate reporting, computed in SQL |
 | `member_reliability` | A member's track record across every loan: completions, average days taken, penalties, longest silence. Drives the re-lend decision |
 | `portfolio_at_risk` | PAR-7 / PAR-30 by value, counted from the last collection rather than days past maturity |
+| `close_cash_day` | Reconciles the physical cash count against what `payments` says came in that business day. The expected figure is snapshotted at closing time, so correcting a payment later does not rewrite a day that has already been closed |
 
 `run_maintenance()` wraps the penalty and flagging passes; the dashboard calls it on load, so no
 scheduler is needed.

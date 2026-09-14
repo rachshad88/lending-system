@@ -1,12 +1,15 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import GoneQuiet from '../components/GoneQuiet';
+import Modal from '../components/Modal';
 import PaymentDialog from '../components/PaymentDialog';
 import StatCard from '../components/StatCard';
 import { ErrorNote, Icon, SectionCard, Spinner } from '../components/ui';
 import { useAsync } from '../lib/useAsync';
 import {
+  closeCashDay,
   ensureMaintenance,
+  getCashReconciliation,
   getIncomeSeries,
   getKpis,
   getPeriodStats,
@@ -108,6 +111,114 @@ function MiniStat({ label, value, sub, tone = 'ink' }) {
   );
 }
 
+/** Shows the result once today's cash has been closed; opens the modal to redo it. */
+function CashCloseBadge({ reconciliation, onEdit }) {
+  const diff = Number(reconciliation.difference);
+  const pillTone = diff === 0 ? 'pill-green' : diff > 0 ? 'pill-blue' : 'pill-red';
+  const label =
+    diff === 0 ? 'Cash matches' : diff > 0 ? `${peso(diff)} over` : `${peso(Math.abs(diff))} short`;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`pill ${pillTone}`}>{label}</span>
+      <button type="button" className="btn btn-sm btn-ghost" onClick={onEdit}>
+        <Icon name="edit" size={14} />
+        Edit
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Counting the drawer against what the books say came in. `expectedNow` is
+ * only ever a live preview here; the saved figure is snapshotted server-side
+ * at the moment of closing, and stays put even if a payment is corrected later.
+ */
+function CashCloseModal({ open, businessDate, expectedNow, existing, onClose, onSaved }) {
+  const [counted, setCounted] = useState(existing ? String(existing.counted_amount) : '');
+  const [note, setNote] = useState(existing?.note ?? '');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const value = Number(counted);
+    if (!counted || value < 0) {
+      setError('Enter the amount counted.');
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await closeCashDay({ businessDate, countedAmount: value, note: note.trim() || null });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={existing ? "Update today's cash count" : "Close today's cash"}
+      subtitle={`System expected ${peso(expectedNow)} collected today`}
+      size="sm"
+      footer={
+        <>
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button type="submit" form="cash-close-form" className="btn btn-success" disabled={busy}>
+            {busy ? <Spinner size={18} label="Saving" /> : existing ? 'Save count' : 'Close cash'}
+          </button>
+        </>
+      }
+    >
+      <form id="cash-close-form" onSubmit={submit} noValidate className="space-y-4">
+        <div>
+          <label className="label" htmlFor="cash-counted">
+            Cash counted <span className="text-red">*</span>
+          </label>
+          <input
+            id="cash-counted"
+            className="input tnum text-lg font-bold"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={counted}
+            onChange={(event) => setCounted(event.target.value)}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="label" htmlFor="cash-note">
+            Note
+          </label>
+          <input
+            id="cash-note"
+            className="input"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="Optional, e.g. gave wrong change earlier"
+          />
+        </div>
+
+        {error && (
+          <p role="alert" className="rounded-xl bg-red-soft px-4 py-3 text-sm">
+            {error}
+          </p>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
 export default function Dashboard() {
   // The server's figures roll over at Manila midnight, so a dashboard left open
   // overnight has to roll over with them instead of pinning the mount date.
@@ -126,6 +237,9 @@ export default function Dashboard() {
   const [granularity, setGranularity] = useState('day');
   const [paying, setPaying] = useState(false);
   const [flash, setFlash] = useState(null);
+  const [closingCash, setClosingCash] = useState(false);
+
+  const cashClose = useAsync(() => getCashReconciliation(today), [today]);
 
   const range = useMemo(() => buildRange(preset, today), [preset, today]);
 
@@ -285,6 +399,21 @@ export default function Dashboard() {
         title="Today's collection"
         subtitle="A member counts as paid once any amount is recorded today"
         bodyClass="grid sm:grid-cols-4"
+        action={
+          !cashClose.loading &&
+          (cashClose.data ? (
+            <CashCloseBadge reconciliation={cashClose.data} onEdit={() => setClosingCash(true)} />
+          ) : (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={() => setClosingCash(true)}
+            >
+              <Icon name="wallet" size={15} />
+              Close today's cash
+            </button>
+          ))
+        }
       >
         <MiniStat
           label="Expected today"
@@ -467,6 +596,17 @@ export default function Dashboard() {
             period.reload();
             series.reload();
           }}
+        />
+      )}
+
+      {closingCash && (
+        <CashCloseModal
+          open
+          businessDate={today}
+          expectedNow={k.collected_today ?? 0}
+          existing={cashClose.data}
+          onClose={() => setClosingCash(false)}
+          onSaved={() => cashClose.reload()}
         />
       )}
     </div>
