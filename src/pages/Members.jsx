@@ -230,8 +230,9 @@ export default function Members() {
           open
           onClose={() => setCreating(false)}
           onSubmit={async (values) => {
-            await createMember(values);
+            const created = await createMember(values);
             reload();
+            return created;
           }}
         />
       )}
