@@ -19,6 +19,7 @@ const WriteOffs = lazy(() => import('./pages/WriteOffs'));
 const CashReconciliation = lazy(() => import('./pages/CashReconciliation'));
 const AmortizationReport = lazy(() => import('./pages/AmortizationReport'));
 const Reports = lazy(() => import('./pages/Reports'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 export default function App() {
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="cash" element={<CashReconciliation />} />
               <Route path="amortization" element={<AmortizationReport />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="audit" element={<AuditLog />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Route>

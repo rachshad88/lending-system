@@ -154,6 +154,22 @@ export async function listMemberOptions() {
   return unwrap(await supabase.from('members').select('id, name, toda').order('name'));
 }
 
+/** Capped, as-you-type lookup for the header's global search — same fields listMembers() matches on. */
+export async function searchMembers(term, limit = 8) {
+  const cleaned = sanitizeSearch(term);
+  if (!cleaned) return [];
+  return unwrap(
+    await supabase
+      .from('members')
+      .select('id, name, contact_number, toda')
+      .or(
+        `name.ilike.%${cleaned}%,contact_number.ilike.%${cleaned}%,vehicle_number.ilike.%${cleaned}%,toda.ilike.%${cleaned}%`
+      )
+      .order('name')
+      .limit(limit)
+  );
+}
+
 export async function getMember(id) {
   return unwrap(await supabase.from('members').select('*').eq('id', id).single());
 }
@@ -341,6 +357,11 @@ export async function deletePayment(paymentId, reason) {
   return unwrap(
     await supabase.rpc('delete_payment', { p_payment_id: paymentId, p_reason: reason || null })
   );
+}
+
+/** Every loan/payment correction across the whole book, newest first. */
+export async function listRecentAudit(limit = 100) {
+  return unwrap(await supabase.rpc('list_recent_audit', { p_limit: limit }));
 }
 
 export async function getPaymentAudit(loanId) {
