@@ -205,10 +205,12 @@ import { Icon } from './ui';
 import { resizeImageToBlob } from '../lib/imageResize';
 
 /**
- * A file input with a camera-capture hint on mobile, resizing the picked
- * image client-side before handing it back. Upload mechanics live with the
- * caller (immediate on an existing member's page, deferred until a new
- * member has an id) — this component only ever produces a Blob.
+ * A plain file input (no `capture` attribute, so it opens the normal OS
+ * picker — gallery, files, or camera, whichever the device offers, not a
+ * forced camera flow), resizing the picked image client-side before handing
+ * it back. Upload mechanics live with the caller (immediate on an existing
+ * member's page, deferred until a new member has an id) — this component
+ * only ever produces a Blob.
  */
 export default function PhotoUpload({ label, onSelect, disabled }) {
   const inputRef = useRef(null);
@@ -246,7 +248,6 @@ export default function PhotoUpload({ label, onSelect, disabled }) {
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleChange}
       />

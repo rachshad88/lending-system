@@ -28,7 +28,7 @@ system today. Either image can be replaced later.
 - Paths are **deterministic**: `members/{member_id}/photo.jpg` and
   `members/{member_id}/id.jpg`. This means "replace" is just an upload to the
   same path with `upsert: true` — no separate edit/delete-then-reupload logic.
-- Migration `0013_member_photos.sql`:
+- Migration `0014_member_photos.sql` (0013 went to the audit-log function, built first):
   - `insert into storage.buckets (id, name, public) values ('member-photos', 'member-photos', false)`
   - RLS policies on `storage.objects` for that bucket: admins can `select`,
     `insert`, and `update` (no public policy at all).
@@ -36,10 +36,10 @@ system today. Either image can be replaced later.
 
 ## Capture & upload flow
 
-- A small reusable upload control: a file input (`accept="image/*"`, with a
-  camera-capture hint on mobile so tapping it opens the phone's camera directly
-  rather than requiring a custom in-app camera UI — simplest option that still
-  gives a native "take a photo" experience on a phone).
+- A small reusable upload control: a plain file input (`accept="image/*"`,
+  no `capture` attribute), so tapping it opens the normal OS picker — photo
+  gallery, files, or camera, whichever the device offers — rather than
+  jumping straight into an in-app or forced camera flow.
 - Used in three places:
   1. The New Member form — both fields optional.
   2. An existing member's page, for whichever field is still empty.
