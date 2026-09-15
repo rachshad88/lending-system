@@ -37,7 +37,7 @@ as income in the first place.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor** and run each file in `supabase/migrations/` in filename order
-   (`0001_init.sql` through `0010_amortization_series.sql`).
+   (`0001_init.sql` through `0012_shared_loan_gap.sql`).
 3. Optional: run `supabase/seed.sql` to fill the books with ~150 demo members and their payment
    history, so you can see the dashboard with realistic numbers before entering real data.
 
@@ -146,6 +146,7 @@ payment is a single atomic transaction and the books cannot end up half-written:
 | `dashboard_kpis` / `period_stats` / `income_series` | Aggregate reporting, computed in SQL |
 | `member_reliability` | A member's track record across every loan: completions, average days taken, penalties, longest silence. Drives the re-lend decision |
 | `member_reliability_bulk` | The same grading facts for many members in one call, so the Members list can badge a whole page without a round trip per row |
+| `loan_payment_gap_days` | Shared "longest silence" calculation behind both `member_reliability` functions, so the Members list badge and the member-detail grade can never disagree |
 | `portfolio_at_risk` | PAR-7 / PAR-30 by value, counted from the last collection rather than days past maturity |
 | `close_cash_day` | Reconciles the physical cash count against what `payments` says came in that business day. The expected figure is snapshotted at closing time, so correcting a payment later does not rewrite a day that has already been closed |
 | `unclosed_cash_days` | Past days that took payments but were never cash-closed, for the dashboard warning |
