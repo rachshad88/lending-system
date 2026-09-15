@@ -482,7 +482,9 @@ export async function listRouteSheetLoans() {
   return unwrap(
     await supabase
       .from('loan_balances')
-      .select('loan_id, member_name, contact_number, toda, daily_due, arrears, balance, is_overdue')
+      .select(
+        'loan_id, member_name, contact_number, toda, daily_due, arrears, balance, is_overdue, paid_today'
+      )
       .eq('status', 'active')
       .gt('balance', 0)
       .order('toda', { ascending: true, nullsFirst: false })
