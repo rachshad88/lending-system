@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon, Spinner } from '../components/ui';
+import { useCapsLock } from '../lib/useCapsLock';
 
 function formatDuration(seconds) {
   if (seconds >= 3600 && seconds % 3600 === 0) {
@@ -87,7 +88,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [lockedUntil, setLockedUntil] = useState(null);
   const [now, setNow] = useState(() => Date.now());
-  const [capsLockOn, setCapsLockOn] = useState(false);
+  const { capsLockOn, trackCapsLock } = useCapsLock();
   const [errorShake, setErrorShake] = useState(0);
 
   useEffect(() => {
@@ -148,12 +149,6 @@ export default function Login() {
       }
     } finally {
       setBusy(false);
-    }
-  };
-
-  const trackCapsLock = (event) => {
-    if (typeof event.getModifierState === 'function') {
-      setCapsLockOn(event.getModifierState('CapsLock'));
     }
   };
 

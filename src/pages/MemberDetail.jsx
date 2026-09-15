@@ -44,8 +44,9 @@ export default function MemberDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
-  const [lending, setLending] = useState(false);
-  const [relending, setRelending] = useState(false);
+  // null | 'new' | 'relend' — one LoanForm instance either way, so the two
+  // entry points can never both be open at once.
+  const [loanFormMode, setLoanFormMode] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
 
@@ -113,16 +114,14 @@ export default function MemberDetail() {
             <Icon name="edit" size={16} />
             Edit
           </button>
-          {relendAmount > 0 && (
+          {ceiling >= RELEND_MAX_AMOUNT && (
             <button
               type="button"
               className="btn btn-success flex-1 sm:flex-none"
-              onClick={() => setRelending(true)}
-              title={
-                ceiling > relendAmount
-                  ? `Track record suggests up to ${peso(ceiling)}; edit the amount for more`
-                  : `Track record suggests up to ${peso(ceiling)}`
-              }
+              onClick={() => setLoanFormMode('relend')}
+              title={`Track record suggests up to ${peso(ceiling)}${
+                ceiling > relendAmount ? '; edit the amount for more' : ''
+              }`}
             >
               <Icon name="trendUp" size={18} />
               Re-lend {peso(relendAmount)}
@@ -131,7 +130,7 @@ export default function MemberDetail() {
           <button
             type="button"
             className="btn btn-primary flex-1 sm:flex-none"
-            onClick={() => setLending(true)}
+            onClick={() => setLoanFormMode('new')}
           >
             <Icon name="plus" size={18} />
             New loan
@@ -159,7 +158,7 @@ export default function MemberDetail() {
                   <button
                     type="button"
                     className="btn btn-primary mt-2"
-                    onClick={() => setLending(true)}
+                    onClick={() => setLoanFormMode('new')}
                   >
                     <Icon name="plus" size={18} />
                     New loan
@@ -278,26 +277,13 @@ export default function MemberDetail() {
         />
       )}
 
-      {lending && (
+      {loanFormMode && (
         <LoanForm
           open
           memberId={id}
           memberName={m.name}
-          onClose={() => setLending(false)}
-          onSubmit={async (values) => {
-            const loanId = await createLoan({ memberId: id, ...values });
-            navigate(`/app/loans/${loanId}`);
-          }}
-        />
-      )}
-
-      {relending && (
-        <LoanForm
-          open
-          memberId={id}
-          memberName={m.name}
-          suggestedPrincipal={relendAmount}
-          onClose={() => setRelending(false)}
+          suggestedPrincipal={loanFormMode === 'relend' ? relendAmount : null}
+          onClose={() => setLoanFormMode(null)}
           onSubmit={async (values) => {
             const loanId = await createLoan({ memberId: id, ...values });
             navigate(`/app/loans/${loanId}`);

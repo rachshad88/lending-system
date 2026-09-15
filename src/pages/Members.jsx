@@ -58,6 +58,9 @@ export default function Members() {
     [rowIds.join(',')]
   );
   const gradeFor = (memberId) => {
+    // Unknown on a failed fetch, not "new" — defaulting to a grade here would
+    // silently mislabel a written-off or long-silent member as a fresh one.
+    if (reliability.error) return undefined;
     const facts = reliability.data?.get(memberId);
     return reliabilityGrade(facts ?? { loans_completed: 0 }, { goneQuietDays })?.grade;
   };
@@ -95,6 +98,12 @@ export default function Members() {
       </div>
 
       <ErrorNote error={error} onRetry={reload} />
+      {reliability.error && (
+        <ErrorNote
+          error="Track record badges couldn't load, so they're hidden below rather than shown wrong."
+          onRetry={reliability.reload}
+        />
+      )}
 
       <SectionCard bodyClass="">
         {loading ? (

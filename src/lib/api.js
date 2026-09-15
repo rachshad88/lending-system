@@ -417,6 +417,12 @@ export function getSettingsCached() {
   return settingsPromise;
 }
 
+/** Best-effort business name for a PDF/Excel letterhead — never throws. */
+export async function getBusinessName() {
+  const settings = await getSettingsCached().catch(() => null);
+  return settings?.business_name;
+}
+
 export async function updateSettings(values) {
   const data = unwrap(
     await supabase

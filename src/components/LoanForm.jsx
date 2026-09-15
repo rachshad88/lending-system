@@ -22,7 +22,7 @@ export default function LoanForm({
   const needsMemberPicker = editing || !memberId;
   const [pickedMemberId, setPickedMemberId] = useState(loan?.member_id ?? '');
   const [principal, setPrincipal] = useState(
-    loan ? String(loan.principal) : suggestedPrincipal ? String(suggestedPrincipal) : ''
+    loan ? String(loan.principal) : suggestedPrincipal != null ? String(suggestedPrincipal) : ''
   );
   const [term, setTerm] = useState(loan ? String(loan.term_days) : '');
   const [startDate, setStartDate] = useState(loan?.start_date ?? todayISO());

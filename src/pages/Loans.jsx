@@ -12,7 +12,7 @@ import {
   StatusPill,
 } from '../components/ui';
 import { useAsync, useDebounced } from '../lib/useAsync';
-import { createLoan, getSettingsCached, listLoans, listRouteSheetLoans } from '../lib/api';
+import { createLoan, getBusinessName, getSettingsCached, listLoans, listRouteSheetLoans } from '../lib/api';
 import { exportRouteSheetPdf } from '../lib/exporters';
 import { formatDate, peso } from '../lib/format';
 import { quietDays, quietTone } from '../lib/risk';
@@ -112,15 +112,12 @@ export default function Loans() {
     setPrinting(true);
     setPrintError(null);
     try {
-      const [routeRows, businessSettings] = await Promise.all([
-        listRouteSheetLoans(),
-        getSettingsCached().catch(() => null),
-      ]);
+      const [routeRows, businessName] = await Promise.all([listRouteSheetLoans(), getBusinessName()]);
       if (!routeRows.length) {
         setPrintError('No active loan has a balance left to collect, so there is no route to print.');
         return;
       }
-      await exportRouteSheetPdf({ rows: routeRows, businessName: businessSettings?.business_name });
+      await exportRouteSheetPdf({ rows: routeRows, businessName });
     } catch (err) {
       setPrintError(err.message);
     } finally {

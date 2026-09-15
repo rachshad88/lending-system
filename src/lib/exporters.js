@@ -14,6 +14,8 @@ const INK = [43, 45, 54];
 const MUTED = [103, 104, 121];
 const FAINT = [150, 153, 166];
 const BRAND = [0, 115, 234];
+const TABLE_ALT_ROW_STYLE = { fillColor: [250, 251, 253] };
+const TABLE_FOOT_STYLE = { fillColor: [245, 246, 250], textColor: INK, fontStyle: 'bold' };
 
 function download(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -52,11 +54,16 @@ function cellText(row, column) {
   return String(value);
 }
 
-/** autoTable applies columnStyles to body cells only; this lines headers and totals up with them. */
-function alignWithBody(aligns, extra) {
+/**
+ * autoTable applies `columnStyles` to body cells only. This reads that same
+ * object to also align head/foot cells, so alignment is declared once per
+ * table — in `columnStyles` — instead of being restated for this callback.
+ */
+function alignWithBody(columnStyles, extra) {
   return (data) => {
-    if ((data.section === 'head' || data.section === 'foot') && aligns[data.column.index]) {
-      data.cell.styles.halign = aligns[data.column.index];
+    if (data.section === 'head' || data.section === 'foot') {
+      const halign = columnStyles[data.column.index]?.halign;
+      if (halign) data.cell.styles.halign = halign;
     }
     extra?.(data);
   };
@@ -103,6 +110,7 @@ export async function exportReportToExcel(report) {
     sheets.unshift({
       sheet: 'Summary',
       data: [
+        [{ value: report.businessName || DEFAULT_BUSINESS_NAME, fontWeight: 'bold', fontSize: 12 }],
         [{ value: report.title, fontWeight: 'bold', fontSize: 14 }],
         [{ value: report.subtitle ?? '', textColor: '#676879' }],
         [],
@@ -190,6 +198,16 @@ export async function exportReportToPdf(report) {
     cursor = doc.lastAutoTable.finalY + 22;
   }
 
+  const columnStyles = Object.fromEntries(
+    report.columns.map((column, index) => [
+      index,
+      {
+        halign:
+          column.align ?? (column.kind === 'money' || column.kind === 'number' ? 'right' : 'left'),
+      },
+    ])
+  );
+
   autoTable(doc, {
     startY: cursor,
     margin: { left: MARGIN, right: MARGIN },
@@ -197,21 +215,9 @@ export async function exportReportToPdf(report) {
     body: report.rows.map((row) => report.columns.map((column) => cellText(row, column))),
     styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
     headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', fontSize: 8 },
-    alternateRowStyles: { fillColor: [248, 250, 253] },
-    columnStyles: Object.fromEntries(
-      report.columns.map((column, index) => [
-        index,
-        {
-          halign:
-            column.align ?? (column.kind === 'money' || column.kind === 'number' ? 'right' : 'left'),
-        },
-      ])
-    ),
-    didParseCell: alignWithBody(
-      report.columns.map(
-        (column) => column.align ?? (column.kind === 'money' || column.kind === 'number' ? 'right' : 'left')
-      )
-    ),
+    alternateRowStyles: TABLE_ALT_ROW_STYLE,
+    columnStyles,
+    didParseCell: alignWithBody(columnStyles),
   });
 
   numberPages(doc);
@@ -276,6 +282,16 @@ export async function exportRouteSheetPdf({ rows, businessName }) {
 
     const startPage = doc.getNumberOfPages();
 
+    const columnStyles = {
+      0: { cellWidth: 22, halign: 'right', textColor: FAINT },
+      1: { cellWidth: 'auto', fontStyle: 'bold' },
+      2: { cellWidth: 82 },
+      3: { cellWidth: 60, halign: 'right' },
+      4: { cellWidth: 56, halign: 'right' },
+      5: { cellWidth: 62, halign: 'right' },
+      6: { cellWidth: 78 },
+    };
+
     autoTable(doc, {
       startY: cursor,
       margin: { left: MARGIN, right: MARGIN, bottom: 40 },
@@ -303,19 +319,11 @@ export async function exportRouteSheetPdf({ rows, businessName }) {
       showFoot: 'lastPage',
       styles: { fontSize: 9, cellPadding: 5, minCellHeight: 24, valign: 'middle', lineColor: [225, 228, 237] },
       headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
-      footStyles: { fillColor: [245, 246, 250], textColor: INK, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [250, 251, 253] },
+      footStyles: TABLE_FOOT_STYLE,
+      alternateRowStyles: TABLE_ALT_ROW_STYLE,
       theme: 'grid',
-      columnStyles: {
-        0: { cellWidth: 22, halign: 'right', textColor: FAINT },
-        1: { cellWidth: 'auto', fontStyle: 'bold' },
-        2: { cellWidth: 82 },
-        3: { cellWidth: 60, halign: 'right' },
-        4: { cellWidth: 56, halign: 'right' },
-        5: { cellWidth: 62, halign: 'right' },
-        6: { cellWidth: 78 },
-      },
-      didParseCell: alignWithBody({ 0: 'right', 3: 'right', 4: 'right', 5: 'right' }, (data) => {
+      columnStyles,
+      didParseCell: alignWithBody(columnStyles, (data) => {
         if (data.section === 'body' && data.column.index === 4 && data.cell.raw !== '-') {
           data.cell.styles.textColor = [179, 45, 66];
           data.cell.styles.fontStyle = 'bold';
@@ -484,6 +492,13 @@ export async function exportLoanStatementPdf({ loan, payments, businessName }) {
     cursor += 30;
   } else {
     const sum = (key) => ordered.reduce((total, row) => total + Number(row[key] || 0), 0);
+    const columnStyles = {
+      0: { cellWidth: 24, halign: 'right', textColor: FAINT },
+      2: { halign: 'right', fontStyle: 'bold' },
+      3: { halign: 'right' },
+      4: { halign: 'right' },
+      5: { halign: 'right' },
+    };
     autoTable(doc, {
       startY: cursor + 8,
       margin: { left: MARGIN, right: MARGIN, bottom: 50 },
@@ -509,16 +524,10 @@ export async function exportLoanStatementPdf({ loan, payments, businessName }) {
       showFoot: 'lastPage',
       styles: { fontSize: 8.5, cellPadding: 5 },
       headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      footStyles: { fillColor: [245, 246, 250], textColor: INK, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [250, 251, 253] },
-      columnStyles: {
-        0: { cellWidth: 24, halign: 'right', textColor: FAINT },
-        2: { halign: 'right', fontStyle: 'bold' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-      },
-      didParseCell: alignWithBody({ 0: 'right', 2: 'right', 3: 'right', 4: 'right', 5: 'right' }),
+      footStyles: TABLE_FOOT_STYLE,
+      alternateRowStyles: TABLE_ALT_ROW_STYLE,
+      columnStyles,
+      didParseCell: alignWithBody(columnStyles),
     });
     cursor = doc.lastAutoTable.finalY + 24;
   }

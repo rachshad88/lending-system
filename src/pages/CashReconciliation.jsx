@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { EmptyState, ErrorNote, Icon, SectionCard, SkeletonRows, Spinner } from '../components/ui';
+import UnclosedDaysList from '../components/UnclosedDaysList';
 import { useAsync } from '../lib/useAsync';
 import {
   closeCashDay,
@@ -113,13 +114,13 @@ export default function CashReconciliation() {
 
         {unclosedDays.length > 0 && (
           <div className="mt-4 rounded-xl border border-red/25 bg-red-soft p-3">
-            <p className="text-sm font-bold">
-              {unclosedDays.length === 1
-                ? '1 past day still needs a count'
-                : `${unclosedDays.length} past days still need a count`}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {unclosedDays.slice(0, 12).map((day) => (
+            <UnclosedDaysList
+              days={unclosedDays}
+              limit={12}
+              message="still need a count"
+              overflowLabel="older"
+              labelClassName="text-sm font-bold"
+              renderDay={(day) => (
                 <button
                   key={day.business_date}
                   type="button"
@@ -131,13 +132,8 @@ export default function CashReconciliation() {
                 >
                   {formatDate(day.business_date)} · {peso(day.expected_amount)}
                 </button>
-              ))}
-              {unclosedDays.length > 12 && (
-                <span className="self-center text-xs font-semibold text-muted">
-                  +{unclosedDays.length - 12} older
-                </span>
               )}
-            </div>
+            />
           </div>
         )}
       </SectionCard>
@@ -149,6 +145,13 @@ export default function CashReconciliation() {
       >
         {closed.loading || expected.loading ? (
           <SkeletonRows rows={2} />
+        ) : closed.error ? (
+          <ErrorNote error={closed.error} onRetry={closed.reload} />
+        ) : !existing && expected.error ? (
+          // Without a saved close, the expected figure comes entirely from this
+          // fetch — showing the form with a silent ₱0 would let a real day get
+          // closed against a fabricated figure.
+          <ErrorNote error={expected.error} onRetry={expected.reload} />
         ) : (
           <>
             <div className="mb-4 grid grid-cols-2 gap-3 rounded-xl bg-canvas p-3 sm:grid-cols-3">
@@ -231,15 +234,14 @@ export default function CashReconciliation() {
                   />
                 </div>
 
-                {counted !== '' && !Number.isNaN(Number(counted)) && (
-                  <p className={`text-sm font-semibold ${differenceTone(Number(counted) - expectedAmount)}`}>
-                    {Number(counted) - expectedAmount === 0
-                      ? 'Matches exactly.'
-                      : Number(counted) - expectedAmount > 0
-                        ? `${peso(Number(counted) - expectedAmount)} over.`
-                        : `${peso(Math.abs(Number(counted) - expectedAmount))} short.`}
-                  </p>
-                )}
+                {counted !== '' && !Number.isNaN(Number(counted)) && (() => {
+                  const diff = Number(counted) - expectedAmount;
+                  return (
+                    <p className={`text-sm font-semibold ${differenceTone(diff)}`}>
+                      {diff === 0 ? 'Matches exactly.' : diff > 0 ? `${peso(diff)} over.` : `${peso(Math.abs(diff))} short.`}
+                    </p>
+                  );
+                })()}
 
                 <ErrorNote error={error} />
 

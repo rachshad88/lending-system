@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAsync } from '../lib/useAsync';
 import { getSettings, updateSettings } from '../lib/api';
 import { formatDateTime } from '../lib/format';
+import { useCapsLock } from '../lib/useCapsLock';
 
 const FIELDS = [
   {
@@ -67,6 +68,7 @@ const FIELDS = [
 /** Toggleable password field, matching the one on the login form. */
 function PasswordField({ id, label, value, onChange, autoComplete }) {
   const [show, setShow] = useState(false);
+  const { capsLockOn, trackCapsLock } = useCapsLock();
   return (
     <div>
       <label className="label" htmlFor={id}>
@@ -81,6 +83,8 @@ function PasswordField({ id, label, value, onChange, autoComplete }) {
           required
           value={value}
           onChange={onChange}
+          onKeyUp={trackCapsLock}
+          onKeyDown={trackCapsLock}
         />
         <button
           type="button"
@@ -91,6 +95,12 @@ function PasswordField({ id, label, value, onChange, autoComplete }) {
           <Icon name={show ? 'eyeOff' : 'eye'} size={18} />
         </button>
       </div>
+      {capsLockOn && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber">
+          <Icon name="risk" size={13} />
+          Caps Lock is on
+        </p>
+      )}
     </div>
   );
 }

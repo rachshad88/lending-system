@@ -101,12 +101,12 @@ export default function AmortizationReport() {
         bodyClass="grid grid-cols-2 divide-x divide-y divide-[#eef0f6] sm:grid-cols-4 sm:divide-y-0"
       >
         {[
-          ['Expected', series.loading ? '—' : peso(totals.expected), 'text-ink'],
-          ['Collected', series.loading ? '—' : peso(totals.collected), 'text-green'],
-          ['Income earned', series.loading ? '—' : peso(totals.income), 'text-teal'],
+          ['Expected', series.loading || series.error ? '—' : peso(totals.expected), 'text-ink'],
+          ['Collected', series.loading || series.error ? '—' : peso(totals.collected), 'text-green'],
+          ['Income earned', series.loading || series.error ? '—' : peso(totals.income), 'text-teal'],
           [
             'Collection rate',
-            series.loading ? '—' : overallRate === null ? 'n/a' : `${overallRate}%`,
+            series.loading || series.error ? '—' : overallRate === null ? 'n/a' : `${overallRate}%`,
             'text-brand',
           ],
         ].map(([label, value, tone]) => (
@@ -117,12 +117,14 @@ export default function AmortizationReport() {
         ))}
       </SectionCard>
 
-      <ErrorNote error={series.error} onRetry={series.reload} />
-
       <SectionCard bodyClass="overflow-x-auto">
         {series.loading ? (
           <div className="p-4">
             <SkeletonRows rows={8} />
+          </div>
+        ) : series.error ? (
+          <div className="p-4">
+            <ErrorNote error={series.error} onRetry={series.reload} />
           </div>
         ) : rows.length === 0 ? (
           <EmptyState

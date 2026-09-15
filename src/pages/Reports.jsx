@@ -3,9 +3,9 @@ import PortfolioAtRisk from '../components/PortfolioAtRisk';
 import { ErrorNote, Icon, SectionCard, Spinner } from '../components/ui';
 import { useAsync } from '../lib/useAsync';
 import {
+  getBusinessName,
   getIncomeSeries,
   getPeriodStats,
-  getSettingsCached,
   reportLoans,
   reportMembers,
   reportPayments,
@@ -200,11 +200,8 @@ export default function Reports() {
     setBusy(format);
     setError(null);
     try {
-      const [report, businessSettings] = await Promise.all([
-        buildReport(),
-        getSettingsCached().catch(() => null),
-      ]);
-      report.businessName = businessSettings?.business_name;
+      const [report, businessName] = await Promise.all([buildReport(), getBusinessName()]);
+      report.businessName = businessName;
       if (!report.rows.length) {
         setError('There is nothing to export for this selection.');
         return;

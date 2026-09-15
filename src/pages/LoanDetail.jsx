@@ -16,11 +16,11 @@ import { useAsync } from '../lib/useAsync';
 import {
   deleteLoan,
   deletePayment,
+  getBusinessName,
   getLoan,
   getLoanAudit,
   getLoanPayments,
   getPaymentAudit,
-  getSettingsCached,
   updateLoan,
 } from '../lib/api';
 import { exportLoanStatementPdf } from '../lib/exporters';
@@ -286,6 +286,7 @@ export default function LoanDetail() {
   const payments = useAsync(() => getLoanPayments(id), [id]);
   const audit = useAsync(() => getPaymentAudit(id), [id]);
   const loanAudit = useAsync(() => getLoanAudit(id), [id]);
+  const businessName = useAsync(getBusinessName, []);
 
   const refreshAll = () => {
     loan.reload();
@@ -311,11 +312,10 @@ export default function LoanDetail() {
     setExporting(true);
     setExportError(null);
     try {
-      const businessSettings = await getSettingsCached().catch(() => null);
       await exportLoanStatementPdf({
         loan: l,
         payments: payments.data ?? [],
-        businessName: businessSettings?.business_name,
+        businessName: businessName.data,
       });
     } catch (err) {
       setExportError(err.message);
