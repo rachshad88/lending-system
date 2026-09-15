@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import GoneQuiet from '../components/GoneQuiet';
 import UnclosedDaysList from '../components/UnclosedDaysList';
+import LoanForm from '../components/LoanForm';
 import Modal from '../components/Modal';
 import PaymentDialog from '../components/PaymentDialog';
 import StatCard from '../components/StatCard';
@@ -9,6 +10,7 @@ import { ErrorNote, Icon, SectionCard, Segmented, Spinner } from '../components/
 import { useAsync } from '../lib/useAsync';
 import {
   closeCashDay,
+  createLoan,
   ensureMaintenance,
   getCashReconciliation,
   getIncomeSeries,
@@ -208,9 +210,11 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  const navigate = useNavigate();
   const [preset, setPreset] = useState('day');
   const [granularity, setGranularity] = useState('day');
   const [paying, setPaying] = useState(false);
+  const [addingLoan, setAddingLoan] = useState(false);
   const [flash, setFlash] = useState(null);
   const [closingCash, setClosingCash] = useState(false);
 
@@ -276,6 +280,10 @@ export default function Dashboard() {
             <Icon name="members" size={18} />
             Add borrower
           </Link>
+          <button type="button" className="btn btn-outline" onClick={() => setAddingLoan(true)}>
+            <Icon name="plus" size={18} />
+            Add loan
+          </button>
           <button type="button" className="btn btn-success" onClick={() => setPaying(true)}>
             <Icon name="peso" size={18} />
             Record payment
@@ -615,6 +623,17 @@ export default function Dashboard() {
             kpis.reload();
             period.reload();
             series.reload();
+          }}
+        />
+      )}
+
+      {addingLoan && (
+        <LoanForm
+          open
+          onClose={() => setAddingLoan(false)}
+          onSubmit={async (values) => {
+            const loanId = await createLoan(values);
+            navigate(`/app/loans/${loanId}`);
           }}
         />
       )}
