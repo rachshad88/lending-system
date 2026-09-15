@@ -182,6 +182,34 @@ export async function updateMember(id, values) {
   return unwrap(await supabase.from('members').update(values).eq('id', id).select('id').single());
 }
 
+const MEMBER_PHOTO_BUCKET = 'member-photos';
+
+function memberPhotoPath(memberId, kind) {
+  return `members/${memberId}/${kind === 'id' ? 'id' : 'photo'}.jpg`;
+}
+
+/** Uploads a resized photo (see imageResize.js) and points the member row at it. `kind` is 'photo' or 'id'. */
+export async function uploadMemberPhoto(memberId, kind, blob) {
+  const path = memberPhotoPath(memberId, kind);
+  const { error: uploadError } = await supabase.storage
+    .from(MEMBER_PHOTO_BUCKET)
+    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const column = kind === 'id' ? 'id_photo_path' : 'photo_path';
+  return unwrap(
+    await supabase.from('members').update({ [column]: path }).eq('id', memberId).select('id').single()
+  );
+}
+
+/** The bucket is private, so every display of a photo needs a fresh short-lived signed URL. */
+export async function getMemberPhotoSignedUrl(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from(MEMBER_PHOTO_BUCKET).createSignedUrl(path, 300);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
+
 export async function deleteMember(id) {
   const { error } = await supabase.from('members').delete().eq('id', id);
   if (error) {
