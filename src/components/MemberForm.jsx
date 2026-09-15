@@ -42,10 +42,11 @@ export default function MemberForm({ open, onClose, onSubmit, initial, title }) 
     setError(null);
     setBusy(true);
     try {
+      const payloadKeys = [...FIELDS.map((f) => f.name), 'notes'];
       const payload = Object.fromEntries(
-        Object.entries(values).map(([key, value]) => [
+        payloadKeys.map((key) => [
           key,
-          typeof value === 'string' ? value.trim() || null : value,
+          typeof values[key] === 'string' ? values[key].trim() || null : values[key],
         ])
       );
       const result = await onSubmit(payload);
