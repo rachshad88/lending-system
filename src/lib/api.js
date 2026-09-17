@@ -246,6 +246,15 @@ export async function getLoan(loanId) {
     supabase.from('loan_balances').select(LOAN_FIELDS).eq('loan_id', loanId).single(),
     supabase.from('loans').select('note').eq('id', loanId).single(),
   ]);
+  // .single() throws PGRST116 ("no rows") with a raw, technical message when
+  // the id points at a loan that has since been deleted — a link out of the
+  // activity log or an old bookmark can land here. Give it a code the page
+  // can recognize instead of surfacing that message as-is.
+  if (loan.error?.code === 'PGRST116') {
+    const err = new Error('This loan no longer exists. It may have been deleted.');
+    err.code = 'not_found';
+    throw err;
+  }
   return { ...unwrap(loan), note: unwrap(terms).note };
 }
 

@@ -223,6 +223,25 @@ export default function LoanDetail() {
   };
 
   if (loan.loading) return <PageLoader />;
+  if (loan.error?.code === 'not_found') {
+    return (
+      <EmptyState
+        icon="trash"
+        title="This loan no longer exists"
+        hint="It was deleted. The activity log still has a record of who removed it and when."
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link to="/app/loans" className="btn btn-outline">
+              Back to loans
+            </Link>
+            <Link to="/app/audit" className="btn btn-outline">
+              Open activity log
+            </Link>
+          </div>
+        }
+      />
+    );
+  }
   if (loan.error) return <ErrorNote error={loan.error} onRetry={loan.reload} />;
 
   const l = loan.data;
