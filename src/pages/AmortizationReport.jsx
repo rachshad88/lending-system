@@ -1,20 +1,34 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, ErrorNote, Icon, SectionCard, Segmented, SkeletonRows } from '../components/ui';
-import { useAsync } from '../lib/useAsync';
+import { useAsync, useDebounced } from '../lib/useAsync';
 import { getAmortizationSeries } from '../lib/api';
 import {
   addDays,
-  addMonths,
   count as fmtCount,
+  endOfMonth,
   formatDate,
   formatDateShort,
   formatMonth,
   formatWeekLabel,
   peso,
-  startOfMonth,
   todayISO,
 } from '../lib/format';
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 const GRANULARITIES = [
   { id: 'day', label: 'Daily' },
@@ -22,12 +36,29 @@ const GRANULARITIES = [
   { id: 'month', label: 'Monthly' },
 ];
 
-// Each toggle gets a window long enough to be useful without turning into an
-// unbounded query — 30 daily rows, ~12 weekly rows, 12 monthly rows.
-function windowFor(granularity, today) {
-  if (granularity === 'week') return { from: addDays(today, -83), to: today };
-  if (granularity === 'month') return { from: addMonths(startOfMonth(today), -11), to: today };
-  return { from: addDays(today, -29), to: today };
+/** Monday of the week containing `iso`. */
+function startOfWeek(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const shift = (dt.getUTCDay() + 6) % 7; // Monday = 0
+  return addDays(iso, -shift);
+}
+
+// Every granularity is pinned to a single period the user picks (a day, the
+// week containing a date, or a month/year), so the report shows exactly what
+// was asked for instead of a long scrollable list.
+function windowFor(granularity, today, pickedDay, pickedWeek, pickedMonth, pickedYear) {
+  if (granularity === 'week') {
+    const from = startOfWeek(pickedWeek);
+    const to = addDays(from, 6);
+    return { from, to: to > today ? today : to };
+  }
+  if (granularity === 'month') {
+    const from = `${pickedYear}-${String(pickedMonth).padStart(2, '0')}-01`;
+    const to = endOfMonth(from);
+    return { from, to: to > today ? today : to };
+  }
+  return { from: pickedDay, to: pickedDay };
 }
 
 function bucketLabel(bucket, granularity) {
@@ -47,7 +78,25 @@ function rateTone(expected, collected) {
 export default function AmortizationReport() {
   const today = useMemo(() => todayISO(), []);
   const [granularity, setGranularity] = useState('day');
-  const range = useMemo(() => windowFor(granularity, today), [granularity, today]);
+  const [pickedDay, setPickedDay] = useState(today);
+  const [pickedWeek, setPickedWeek] = useState(today);
+  const [pickedMonth, setPickedMonth] = useState(Number(today.slice(5, 7)));
+  const [pickedYear, setPickedYear] = useState(Number(today.slice(0, 4)));
+  // The native date input fires onChange as soon as each field (year, month,
+  // day) resolves to a valid date while typing, not just on a final pick —
+  // debounce so a half-typed date doesn't fire an RPC per keystroke.
+  const debouncedDay = useDebounced(pickedDay, 400);
+  const debouncedWeek = useDebounced(pickedWeek, 400);
+  const range = useMemo(
+    () => windowFor(granularity, today, debouncedDay, debouncedWeek, pickedMonth, pickedYear),
+    [granularity, today, debouncedDay, debouncedWeek, pickedMonth, pickedYear]
+  );
+
+  const currentYear = Number(today.slice(0, 4));
+  const yearOptions = useMemo(
+    () => Array.from({ length: 6 }, (_, i) => currentYear - i),
+    [currentYear]
+  );
 
   const series = useAsync(
     () => getAmortizationSeries(range.from, range.to, granularity),
@@ -82,22 +131,72 @@ export default function AmortizationReport() {
             Amortization report
           </h1>
           <p className="max-w-2xl text-muted">
-            What the book as a whole owed each period — every active loan's daily figure added up —
+            What the book as a whole owed each period: every active loan's daily figure added up,
             against what actually came in. The loans themselves run on a live balance, not a fixed
             schedule; this is the aggregate view of it.
           </p>
         </div>
-        <Segmented
-          options={GRANULARITIES}
-          value={granularity}
-          onChange={setGranularity}
-          ariaLabel="Report granularity"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {granularity === 'day' && (
+            <input
+              type="date"
+              className="input w-auto"
+              value={pickedDay}
+              max={today}
+              onChange={(event) => setPickedDay(event.target.value || today)}
+              aria-label="Pick a date"
+            />
+          )}
+          {granularity === 'week' && (
+            <input
+              type="date"
+              className="input w-auto"
+              value={pickedWeek}
+              max={today}
+              onChange={(event) => setPickedWeek(event.target.value || today)}
+              aria-label="Pick a date in the week"
+            />
+          )}
+          {granularity === 'month' && (
+            <>
+              <select
+                className="select w-auto"
+                value={pickedMonth}
+                onChange={(event) => setPickedMonth(Number(event.target.value))}
+                aria-label="Pick a month"
+              >
+                {MONTH_NAMES.map((name, index) => (
+                  <option key={name} value={index + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="select w-auto"
+                value={pickedYear}
+                onChange={(event) => setPickedYear(Number(event.target.value))}
+                aria-label="Pick a year"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          <Segmented
+            options={GRANULARITIES}
+            value={granularity}
+            onChange={setGranularity}
+            ariaLabel="Report granularity"
+          />
+        </div>
       </header>
 
       <SectionCard
         title="Totals for this window"
-        subtitle={`${formatDate(range.from)} – ${formatDate(range.to)}`}
+        subtitle={range.from === range.to ? formatDate(range.from) : `${formatDate(range.from)} – ${formatDate(range.to)}`}
         bodyClass="grid grid-cols-2 divide-x divide-y divide-[#eef0f6] sm:grid-cols-4 sm:divide-y-0"
       >
         {[

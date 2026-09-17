@@ -93,7 +93,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
         {needsPicker && (
           <div>
             <label className="label" htmlFor="pay-loan">
-              Loan <span className="text-red">*</span>
+              Member <span className="text-red">*</span>
             </label>
             <select
               id="pay-loan"
@@ -103,7 +103,7 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
               disabled={loansLoading || options.length === 0}
               required
             >
-              <option value="">{loansLoading ? 'Loading loans…' : 'Choose a loan'}</option>
+              <option value="">{loansLoading ? 'Loading members…' : 'Choose a member'}</option>
               {options.map((o) => (
                 <option key={o.loan_id} value={o.loan_id}>
                   {o.member_name}
