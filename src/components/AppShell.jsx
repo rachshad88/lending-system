@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon } from './ui';
+import GlobalSearch from './GlobalSearch';
 import SignOutSummary from './SignOutSummary';
 
 const NAV = [
   { to: '/app', label: 'Dashboard', icon: 'dashboard', end: true },
+  { to: '/app/collect', label: 'Collect', icon: 'mapPin' },
   { to: '/app/members', label: 'Members', icon: 'members' },
   { to: '/app/loans', label: 'Loans', icon: 'loans' },
   { to: '/app/risk', label: 'Risk', icon: 'risk' },
@@ -30,14 +32,17 @@ function Logo({ compact = false }) {
 export default function AppShell() {
   const { user, signOut } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   return (
     <div className="min-h-screen lg:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-line bg-surface px-3 py-4 lg:flex">
-        <Link to="/app" className="mb-6 px-2">
+        <Link to="/app" className="mb-4 px-2">
           <Logo />
         </Link>
+
+        <GlobalSearch className="mb-4" />
 
         <nav className="flex flex-1 flex-col gap-1" aria-label="Main">
           {NAV.map((item) => (
@@ -86,23 +91,39 @@ export default function AppShell() {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-2.5 backdrop-blur lg:hidden">
-        <Link to="/app">
-          <Logo />
-        </Link>
-        <div className="flex items-center gap-1">
-          <NavLink to="/app/settings" className="btn btn-ghost btn-sm" aria-label="Settings">
-            <Icon name="settings" size={19} />
-          </NavLink>
-          <button
-            type="button"
-            onClick={() => setLoggingOut(true)}
-            className="btn btn-ghost btn-sm"
-            aria-label="Sign out"
-          >
-            <Icon name="logout" size={19} />
-          </button>
+      <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur lg:hidden">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <Link to="/app">
+            <Logo />
+          </Link>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen((v) => !v)}
+              className="btn btn-ghost btn-sm"
+              aria-label="Search members"
+              aria-pressed={mobileSearchOpen}
+            >
+              <Icon name={mobileSearchOpen ? 'x' : 'search'} size={19} />
+            </button>
+            <NavLink to="/app/settings" className="btn btn-ghost btn-sm" aria-label="Settings">
+              <Icon name="settings" size={19} />
+            </NavLink>
+            <button
+              type="button"
+              onClick={() => setLoggingOut(true)}
+              className="btn btn-ghost btn-sm"
+              aria-label="Sign out"
+            >
+              <Icon name="logout" size={19} />
+            </button>
+          </div>
         </div>
+        {mobileSearchOpen && (
+          <div className="border-t border-line px-4 py-2.5">
+            <GlobalSearch onNavigate={() => setMobileSearchOpen(false)} />
+          </div>
+        )}
       </header>
 
       <main className="min-w-0 flex-1 pb-24 lg:pb-8">
@@ -113,7 +134,7 @@ export default function AppShell() {
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
         aria-label="Main"
       >
         {NAV.map((item) => (

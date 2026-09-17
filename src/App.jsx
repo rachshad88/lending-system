@@ -12,6 +12,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Members = lazy(() => import('./pages/Members'));
 const MemberDetail = lazy(() => import('./pages/MemberDetail'));
+const Collect = lazy(() => import('./pages/Collect'));
 const Loans = lazy(() => import('./pages/Loans'));
 const LoanDetail = lazy(() => import('./pages/LoanDetail'));
 const WriteOffs = lazy(() => import('./pages/WriteOffs'));
@@ -39,6 +40,7 @@ export default function App() {
               }
             >
               <Route index element={<Dashboard />} />
+              <Route path="collect" element={<Collect />} />
               <Route path="members" element={<Members />} />
               <Route path="members/:id" element={<MemberDetail />} />
               <Route path="loans" element={<Loans />} />

@@ -4,6 +4,7 @@ import LoanForm from '../components/LoanForm';
 import MemberForm from '../components/MemberForm';
 import Modal from '../components/Modal';
 import ReliabilityPanel from '../components/ReliabilityPanel';
+import MemberPhoto from '../components/MemberPhoto';
 import {
   EmptyState,
   ErrorNote,
@@ -222,6 +223,25 @@ export default function MemberDetail() {
             ceiling={ceiling}
             maxExposure={maxExposure}
           />
+
+          <SectionCard title="Photos" bodyClass="p-4 sm:p-5">
+            <div className="grid grid-cols-2 gap-4">
+              <MemberPhoto
+                memberId={id}
+                path={m.photo_path}
+                kind="photo"
+                label="Member photo"
+                onUploaded={member.reload}
+              />
+              <MemberPhoto
+                memberId={id}
+                path={m.id_photo_path}
+                kind="id"
+                label="ID photo"
+                onUploaded={member.reload}
+              />
+            </div>
+          </SectionCard>
 
           <SectionCard title="Profile" bodyClass="px-4 py-2 sm:px-5">
             <dl className="divide-y divide-[#eef0f6]">

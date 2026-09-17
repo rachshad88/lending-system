@@ -36,8 +36,8 @@ as income in the first place.
 ### 1. Create the database
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** and run each file in `supabase/migrations/` in filename order
-   (`0001_init.sql` through `0012_shared_loan_gap.sql`).
+2. Open **SQL Editor** and run every file in `supabase/migrations/`, in filename order —
+   whatever the highest-numbered file is by the time you read this.
 3. Optional: run `supabase/seed.sql` to fill the books with ~150 demo members and their payment
    history, so you can see the dashboard with realistic numbers before entering real data.
 

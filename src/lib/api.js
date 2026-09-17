@@ -154,6 +154,22 @@ export async function listMemberOptions() {
   return unwrap(await supabase.from('members').select('id, name, toda').order('name'));
 }
 
+/** Capped, as-you-type lookup for the header's global search — same fields listMembers() matches on. */
+export async function searchMembers(term, limit = 8) {
+  const cleaned = sanitizeSearch(term);
+  if (!cleaned) return [];
+  return unwrap(
+    await supabase
+      .from('members')
+      .select('id, name, contact_number, toda')
+      .or(
+        `name.ilike.%${cleaned}%,contact_number.ilike.%${cleaned}%,vehicle_number.ilike.%${cleaned}%,toda.ilike.%${cleaned}%`
+      )
+      .order('name')
+      .limit(limit)
+  );
+}
+
 export async function getMember(id) {
   return unwrap(await supabase.from('members').select('*').eq('id', id).single());
 }
@@ -164,6 +180,34 @@ export async function createMember(values) {
 
 export async function updateMember(id, values) {
   return unwrap(await supabase.from('members').update(values).eq('id', id).select('id').single());
+}
+
+const MEMBER_PHOTO_BUCKET = 'member-photos';
+
+function memberPhotoPath(memberId, kind) {
+  return `members/${memberId}/${kind === 'id' ? 'id' : 'photo'}.jpg`;
+}
+
+/** Uploads a resized photo (see imageResize.js) and points the member row at it. `kind` is 'photo' or 'id'. */
+export async function uploadMemberPhoto(memberId, kind, blob) {
+  const path = memberPhotoPath(memberId, kind);
+  const { error: uploadError } = await supabase.storage
+    .from(MEMBER_PHOTO_BUCKET)
+    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const column = kind === 'id' ? 'id_photo_path' : 'photo_path';
+  return unwrap(
+    await supabase.from('members').update({ [column]: path }).eq('id', memberId).select('id').single()
+  );
+}
+
+/** The bucket is private, so every display of a photo needs a fresh short-lived signed URL. */
+export async function getMemberPhotoSignedUrl(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from(MEMBER_PHOTO_BUCKET).createSignedUrl(path, 300);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
 }
 
 export async function deleteMember(id) {
@@ -514,7 +558,9 @@ export async function listRouteSheetLoans() {
   return unwrap(
     await supabase
       .from('loan_balances')
-      .select('loan_id, member_name, contact_number, toda, daily_due, arrears, balance, is_overdue')
+      .select(
+        'loan_id, member_name, contact_number, toda, daily_due, arrears, balance, is_overdue, paid_today'
+      )
       .eq('status', 'active')
       .gt('balance', 0)
       .order('toda', { ascending: true, nullsFirst: false })
