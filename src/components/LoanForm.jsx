@@ -68,6 +68,12 @@ export default function LoanForm({
       setError('Enter the amount being released.');
       return;
     }
+    if (editing && Number(loan.paid_total) > preview.total) {
+      setError(
+        `This loan already has ${peso(loan.paid_total)} collected against it. The new terms must total at least that much.`
+      );
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
