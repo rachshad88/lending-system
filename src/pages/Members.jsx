@@ -92,7 +92,7 @@ export default function Members() {
           type="search"
           value={search}
           onChange={onSearch}
-          placeholder="Search by name, number, vehicle or TODA"
+          placeholder="Search name, number, vehicle or TODA"
           aria-label="Search members"
         />
       </div>
