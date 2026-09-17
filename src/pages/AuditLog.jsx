@@ -14,6 +14,7 @@ const SOURCES = [
   { id: 'member', label: 'Members' },
   { id: 'loan', label: 'Loans' },
   { id: 'payment', label: 'Payments' },
+  { id: 'cash', label: 'Cash counts' },
   { id: 'login', label: 'Sign-ins' },
   { id: 'logout', label: 'Sign-outs' },
 ];
@@ -36,9 +37,9 @@ export default function AuditLog() {
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">Activity log</h1>
         <p className="max-w-2xl text-muted">
-          Every member, loan and payment added, edited or removed, plus every sign-in and sign-out —
-          newest first, across the whole book. A single loan's own history is also on its detail
-          page.
+          Every member, loan and payment added, edited or removed, every cash count closed or
+          corrected, plus every sign-in and sign-out — newest first, across the whole book. A single
+          loan's own history is also on its detail page.
         </p>
       </div>
 

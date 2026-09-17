@@ -8,6 +8,8 @@ export const ACTION_TONE = {
   bad_password: 'pill-red',
   locked: 'pill-amber',
   signed_out: 'pill-grey',
+  closed: 'pill-green',
+  corrected: 'pill-amber',
 };
 
 const LOGIN_OUTCOME_LABEL = { ok: 'succeeded', bad_password: 'failed', locked: 'blocked' };
@@ -165,6 +167,29 @@ export function AuditDescription({ entry }) {
   }
   if (entry.kind === 'logout') {
     return <p>Signed out.</p>;
+  }
+  if (entry.kind === 'cash' && entry.action === 'closed') {
+    return (
+      <p>
+        Counted <span className="tnum font-bold">{peso(entry.new_values?.counted_amount)}</span>{' '}
+        against <span className="tnum">{peso(entry.new_values?.expected_amount)}</span> expected
+        {entry.new_values?.note && <span className="text-muted"> · {entry.new_values.note}</span>}
+      </p>
+    );
+  }
+  if (entry.kind === 'cash' && entry.action === 'corrected') {
+    const o = entry.old_values ?? {};
+    const n = entry.new_values ?? {};
+    const changes = [];
+    if (Number(o.counted_amount) !== Number(n.counted_amount)) {
+      changes.push(['Counted', peso(o.counted_amount), peso(n.counted_amount)]);
+    }
+    if (Number(o.expected_amount) !== Number(n.expected_amount)) {
+      changes.push(['Expected', peso(o.expected_amount), peso(n.expected_amount)]);
+    }
+    if ((o.note ?? '') !== (n.note ?? '')) changes.push(['Note', o.note || '—', n.note || '—']);
+    if (!changes.length) return <p>Re-closed without any change.</p>;
+    return <FieldDiffList changes={changes} />;
   }
   return null;
 }

@@ -48,6 +48,12 @@ export default function CashReconciliation() {
   const unclosedDays = unclosed.data ?? [];
 
   const existing = closed.data;
+  // closed.data still holds the previous date's row while a new date is
+  // loading (useAsync doesn't clear data on refetch), so anything that
+  // decides what to SHOW — not just what to fetch — must also check
+  // closed.loading, or switching dates flashes the old day's "Already
+  // closed" title for a frame before the real (possibly empty) result lands.
+  const showingExisting = !closed.loading && Boolean(existing);
   const expectedAmount = existing ? Number(existing.expected_amount) : Number(expected.data?.collected ?? 0);
 
   const submit = async (event) => {
@@ -139,7 +145,7 @@ export default function CashReconciliation() {
       </SectionCard>
 
       <SectionCard
-        title={existing ? 'Already closed' : '2. Count the drawer'}
+        title={showingExisting ? 'Already closed' : '2. Count the drawer'}
         subtitle={formatDate(date)}
         bodyClass="p-4 sm:p-5"
       >
