@@ -245,9 +245,11 @@ export default function MemberDetail() {
           )}
 
           <SectionCard title="Danger zone" bodyClass="p-4 sm:p-5">
-            <p className="mb-3 text-sm text-muted">
-              A member with loans on record cannot be deleted. That history has to stay.
-            </p>
+            {rows.length > 0 && (
+              <p className="mb-3 text-sm text-muted">
+                A member with loans on record cannot be deleted. That history has to stay.
+              </p>
+            )}
             <button
               type="button"
               className="btn btn-outline w-full text-red"

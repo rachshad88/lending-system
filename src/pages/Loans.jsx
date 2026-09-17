@@ -26,11 +26,14 @@ const SORTS = [
 
 const QUIET_TEXT = { red: 'text-red font-bold', amber: 'text-amber font-semibold', muted: 'text-muted' };
 
-/** Days with nothing collected — the earliest sign a loan is going wrong. */
+/** Days with nothing collected — the earliest sign a loan is going wrong. Only
+ * worth flagging while the loan is still active; a closed loan going quiet
+ * isn't a risk signal. */
 function QuietCell({ loan, threshold }) {
   const days = quietDays(loan);
+  const tone = loan.status === 'active' ? quietTone(days, threshold) : 'muted';
   return (
-    <span className={QUIET_TEXT[quietTone(days, threshold)]}>
+    <span className={QUIET_TEXT[tone]}>
       {days}d
       {!loan.last_payment_date && <span className="block text-xs font-normal">never paid</span>}
     </span>

@@ -47,6 +47,7 @@ export default function App() {
               <Route path="amortization" element={<AmortizationReport />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/app" replace />} />
             </Route>
           </Route>
 
