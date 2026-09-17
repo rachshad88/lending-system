@@ -353,9 +353,27 @@ export async function getPaymentAudit(loanId) {
   );
 }
 
-/** Every loan/payment edit and deletion across the whole book, newest first. */
-export async function getRecentAudit(limit = 200) {
-  return unwrap(await supabase.rpc('list_recent_audit', { p_limit: limit }));
+/**
+ * Every member/loan/payment change and every sign-in/out across the whole
+ * book, newest first. p_limit is a generous cap inside the function itself;
+ * the real paging, filtering and search happen here, the same way every
+ * other list in the app works.
+ */
+export async function getRecentAudit({ search = '', source = 'all', page = 1, pageSize = 20 } = {}) {
+  const from = (page - 1) * pageSize;
+  let query = supabase
+    .rpc('list_recent_audit', { p_limit: 100000 }, { count: 'exact' })
+    .order('changed_at', { ascending: false })
+    .range(from, from + pageSize - 1);
+
+  if (source !== 'all') query = query.eq('source', source);
+
+  const term = sanitizeSearch(search);
+  if (term) query = query.ilike('label', `%${term}%`);
+
+  const { data, error, count } = await query;
+  if (error) throw new Error(error.message);
+  return { rows: data ?? [], total: count ?? 0 };
 }
 
 /* ------------------------------------------------------------- write-offs */
