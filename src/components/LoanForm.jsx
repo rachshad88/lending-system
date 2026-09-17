@@ -44,7 +44,7 @@ export default function LoanForm({
   const effectiveTerm = Number(term) || Number(settings?.default_term_days ?? 40);
 
   const preview = useMemo(() => {
-    const amount = Number(principal) || 0;
+    const amount = Math.max(0, Number(principal) || 0);
     const interest = Math.round(amount * (rate / 100) * 100) / 100;
     const total = amount + interest;
     return {

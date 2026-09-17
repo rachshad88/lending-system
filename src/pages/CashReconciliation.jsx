@@ -85,7 +85,7 @@ export default function CashReconciliation() {
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">Cash reconciliation</h1>
         <p className="text-muted">
           At the end of the day, count what is actually in hand and check it against what the system
-          says came in. Closing a day again — say, after fixing a payment — recomputes the expected
+          says came in. Closing a day again (say, after fixing a payment) recomputes the expected
           figure but keeps the day's history.
         </p>
       </header>

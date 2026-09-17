@@ -293,7 +293,10 @@ export default function Reports() {
                 type="date"
                 value={from}
                 max={to}
-                onChange={(event) => setFrom(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value) setFrom(value > to ? to : value);
+                }}
               />
             </div>
             <div>
@@ -307,7 +310,10 @@ export default function Reports() {
                 value={to}
                 min={from}
                 max={today}
-                onChange={(event) => setTo(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value) setTo(value < from ? from : value);
+                }}
               />
             </div>
           </div>
