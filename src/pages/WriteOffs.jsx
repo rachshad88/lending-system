@@ -157,7 +157,7 @@ export default function WriteOffs() {
     },
     dismiss: {
       title: 'Keep collecting on this loan?',
-      body: 'The flag is cleared and the loan stays active. It will not be flagged again unless you re-run the check after clearing it.',
+      body: "The flag is cleared and the loan stays active. It won't be flagged again automatically, but you can write it off from the Dismissed tab any time if nothing changes.",
       cta: 'Dismiss flag',
       className: 'btn-primary',
     },
@@ -291,6 +291,20 @@ export default function WriteOffs() {
                         Reopen loan
                       </button>
                     )}
+                    {row.status === 'dismissed' &&
+                      loan?.status === 'active' &&
+                      Number(loan.balance) > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger flex-1 sm:flex-none"
+                          onClick={() => {
+                            setReason('');
+                            setAction({ kind: 'confirm', row });
+                          }}
+                        >
+                          Write off
+                        </button>
+                      )}
                   </div>
                 </div>
 
