@@ -44,6 +44,15 @@ function startOfWeek(iso) {
   return addDays(iso, -shift);
 }
 
+// Caps `to` at `today`, without ever pushing it before `from` — a period
+// that hasn't started yet (a future month picked from the dropdown, say)
+// collapses to a single, still-chronological day instead of an inverted
+// range like "Dec 1, 2026 – Sep 17, 2026".
+function capToToday(from, to, today) {
+  if (to <= today) return to;
+  return from > today ? from : today;
+}
+
 // Every granularity is pinned to a single period the user picks (a day, the
 // week containing a date, or a month/year), so the report shows exactly what
 // was asked for instead of a long scrollable list.
@@ -51,12 +60,12 @@ function windowFor(granularity, today, pickedDay, pickedWeek, pickedMonth, picke
   if (granularity === 'week') {
     const from = startOfWeek(pickedWeek);
     const to = addDays(from, 6);
-    return { from, to: to > today ? today : to };
+    return { from, to: capToToday(from, to, today) };
   }
   if (granularity === 'month') {
     const from = `${pickedYear}-${String(pickedMonth).padStart(2, '0')}-01`;
     const to = endOfMonth(from);
-    return { from, to: to > today ? today : to };
+    return { from, to: capToToday(from, to, today) };
   }
   return { from: pickedDay, to: pickedDay };
 }
