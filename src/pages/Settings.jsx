@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ErrorNote, Icon, PageLoader, SectionCard, Spinner } from '../components/ui';
 import SignInSecurity from '../components/SignInSecurity';
 import { useAuth } from '../context/AuthContext';
@@ -334,6 +335,16 @@ export default function Settings() {
       </SectionCard>
 
       <SignInSecurity />
+
+      <SectionCard title="Activity log" bodyClass="p-4 sm:p-5">
+        <p className="mb-3 text-sm text-muted">
+          Every loan and payment edit or deletion across the whole book, in one place.
+        </p>
+        <Link to="/app/audit" className="btn btn-outline">
+          <Icon name="history" size={16} />
+          View activity log
+        </Link>
+      </SectionCard>
     </div>
   );
 }

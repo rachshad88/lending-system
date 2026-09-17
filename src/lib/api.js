@@ -353,6 +353,11 @@ export async function getPaymentAudit(loanId) {
   );
 }
 
+/** Every loan/payment edit and deletion across the whole book, newest first. */
+export async function getRecentAudit(limit = 200) {
+  return unwrap(await supabase.rpc('list_recent_audit', { p_limit: limit }));
+}
+
 /* ------------------------------------------------------------- write-offs */
 
 export async function listWriteOffs(status = 'flagged') {

@@ -15,6 +15,7 @@ const MemberDetail = lazy(() => import('./pages/MemberDetail'));
 const Loans = lazy(() => import('./pages/Loans'));
 const LoanDetail = lazy(() => import('./pages/LoanDetail'));
 const WriteOffs = lazy(() => import('./pages/WriteOffs'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
 const CashReconciliation = lazy(() => import('./pages/CashReconciliation'));
 const AmortizationReport = lazy(() => import('./pages/AmortizationReport'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="cash" element={<CashReconciliation />} />
               <Route path="amortization" element={<AmortizationReport />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="audit" element={<AuditLog />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/app" replace />} />
             </Route>
