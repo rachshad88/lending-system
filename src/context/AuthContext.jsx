@@ -20,6 +20,17 @@ const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'focus
 // Passwords are checked by the admin-auth Edge Function, which counts failures
 // and locks the account server-side. Errors carry its code so screens can say
 // how many tries are left or how long the pause lasts.
+// Best effort: a sign-out should never hang or fail because the logging call
+// did. log_logout() reads the caller's own session server-side, so it has to
+// run before signOut() clears the token, not after.
+async function logLogout() {
+  try {
+    await supabase.rpc('log_logout');
+  } catch {
+    // nothing to do if this fails — the sign-out itself still proceeds
+  }
+}
+
 async function callAdminAuth(body) {
   const { data, error } = await supabase.functions.invoke('admin-auth', { body });
   if (!error) return data;
@@ -128,19 +139,20 @@ export function AuthProvider({ children }) {
       markActivity();
     }
 
-    if (Date.now() - lastActivity.current > IDLE_LIMIT_MS) {
+    const handleIdleTimeout = () => {
       setIdleSignOut(true);
-      supabase.auth.signOut();
+      logLogout().then(() => supabase.auth.signOut());
+    };
+
+    if (Date.now() - lastActivity.current > IDLE_LIMIT_MS) {
+      handleIdleTimeout();
       return;
     }
 
     ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, markActivity, { passive: true }));
 
     const timer = setInterval(() => {
-      if (Date.now() - lastActivity.current > IDLE_LIMIT_MS) {
-        setIdleSignOut(true);
-        supabase.auth.signOut();
-      }
+      if (Date.now() - lastActivity.current > IDLE_LIMIT_MS) handleIdleTimeout();
     }, IDLE_CHECK_MS);
 
     return () => {
@@ -203,6 +215,7 @@ export function AuthProvider({ children }) {
     } catch {
       // nothing to clean up
     }
+    await logLogout();
     await supabase.auth.signOut();
   }, []);
 

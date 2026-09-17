@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ACTION_TONE, AuditDescription } from '../components/AuditEntry';
+import { ACTION_TONE, AuditDescription, badgeLabel } from '../components/AuditEntry';
 import LoanForm from '../components/LoanForm';
 import Modal from '../components/Modal';
 import PaymentDialog from '../components/PaymentDialog';
@@ -170,7 +170,7 @@ function AuditTrail({ rows }) {
         <li key={`${entry.kind}-${entry.id}`} className="px-4 py-3.5 sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`pill ${ACTION_TONE[entry.action] ?? 'pill-grey'}`}>
-              {entry.kind} {entry.action}
+              {badgeLabel(entry)}
             </span>
             <span className="text-sm text-muted">{formatDateTime(entry.changed_at)}</span>
           </div>
