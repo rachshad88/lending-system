@@ -57,6 +57,10 @@ export default function PaymentDialog({ loan: fixedLoan = null, payment = null, 
       setError('Enter the amount collected.');
       return;
     }
+    if (date > todayISO()) {
+      setError('Payment date cannot be in the future.');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
