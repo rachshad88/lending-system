@@ -3,17 +3,9 @@ import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon } from './ui';
 import GlobalSearch from './GlobalSearch';
+import MobileTabBar from './MobileTabBar';
+import { NAV } from './nav';
 import SignOutSummary from './SignOutSummary';
-
-const NAV = [
-  { to: '/app', label: 'Dashboard', icon: 'dashboard', end: true },
-  { to: '/app/collect', label: 'Collect', icon: 'mapPin' },
-  { to: '/app/members', label: 'Members', icon: 'members' },
-  { to: '/app/loans', label: 'Loans', icon: 'loans' },
-  { to: '/app/risk', label: 'Risk', icon: 'risk' },
-  { to: '/app/cash', label: 'Cash', icon: 'wallet' },
-  { to: '/app/reports', label: 'Reports', icon: 'reports' },
-];
 
 function Logo({ compact = false }) {
   return (
@@ -132,37 +124,7 @@ export default function AppShell() {
         </div>
       </main>
 
-      {/* Mobile bottom navigation */}
-      <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-        aria-label="Main"
-      >
-        {NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              `flex min-h-[58px] flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${
-                isActive ? 'text-brand' : 'text-faint'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${
-                    isActive ? 'bg-brand-soft' : ''
-                  }`}
-                >
-                  <Icon name={item.icon} size={19} />
-                </span>
-                {item.label}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+      <MobileTabBar items={NAV} />
 
       <SignOutSummary
         open={loggingOut}
