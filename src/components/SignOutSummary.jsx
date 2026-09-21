@@ -1,42 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import { Spinner } from './ui';
 import { useAsync } from '../lib/useAsync';
 import { getKpis } from '../lib/api';
 import { peso, count as fmtCount } from '../lib/format';
 
-const COUNTDOWN_SECONDS = 5;
-
 /**
- * Shown on sign-out: today's collection figures, for 5 seconds, before the
- * session actually ends. Not a schedule — this app runs on a live balance,
- * not fixed day-by-day amortization (see README) — just a closing snapshot.
+ * Shown on sign-out: today's collection figures before the session ends. It
+ * waits for an explicit choice rather than signing out on a timer, so nobody
+ * loses their place while reading. Not a schedule — this app runs on a live
+ * balance, not fixed day-by-day amortization (see README) — just a closing
+ * snapshot.
  */
 export default function SignOutSummary({ open, onCancel, onSignOut }) {
-  const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const kpis = useAsync(() => (open ? getKpis() : Promise.resolve(null)), [open]);
-  // The interval is created once per `open` toggle; a fresh onSignOut identity
-  // every render must not restart it, so the callback lives in a ref instead.
-  const onSignOutRef = useRef(onSignOut);
-  onSignOutRef.current = onSignOut;
-
-  useEffect(() => {
-    if (!open) {
-      setSecondsLeft(COUNTDOWN_SECONDS);
-      return undefined;
-    }
-    const timer = setInterval(() => {
-      setSecondsLeft((seconds) => {
-        if (seconds <= 1) {
-          clearInterval(timer);
-          onSignOutRef.current();
-          return 0;
-        }
-        return seconds - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [open]);
 
   if (!open) return null;
 
@@ -47,15 +23,15 @@ export default function SignOutSummary({ open, onCancel, onSignOut }) {
       open={open}
       onClose={onCancel}
       title="Today's collection summary"
-      subtitle={`Signing out in ${secondsLeft}s`}
+      subtitle="Check today's figures before you sign out."
       size="sm"
       footer={
         <>
           <button type="button" className="btn btn-outline" onClick={onCancel}>
             Stay signed in
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => onSignOutRef.current()}>
-            Sign out now
+          <button type="button" className="btn btn-primary" onClick={onSignOut}>
+            Sign out
           </button>
         </>
       }
@@ -88,7 +64,6 @@ export default function SignOutSummary({ open, onCancel, onSignOut }) {
           </div>
         </dl>
       )}
-      <p className="mt-3 text-xs text-muted">A last look at today's collections before you go.</p>
     </Modal>
   );
 }

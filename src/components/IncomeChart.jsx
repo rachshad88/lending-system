@@ -77,7 +77,7 @@ export default function IncomeChart({ data, granularity }) {
           <CartesianGrid stroke="#eef0f6" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: '#9699a6' }}
+            tick={{ fontSize: 11, fill: '#6b6e7e' }}
             tickLine={false}
             axisLine={{ stroke: '#e1e4ed' }}
             interval="preserveStartEnd"
@@ -85,7 +85,7 @@ export default function IncomeChart({ data, granularity }) {
           />
           <YAxis
             tickFormatter={shortPeso}
-            tick={{ fontSize: 11, fill: '#9699a6' }}
+            tick={{ fontSize: 11, fill: '#6b6e7e' }}
             tickLine={false}
             axisLine={false}
             width={58}
