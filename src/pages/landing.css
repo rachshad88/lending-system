@@ -51,7 +51,7 @@
     /* Glass, regular variant: blurred, lightly saturated, translucent fill
        plus a hairline highlight along the top edge. */
     --lp-glass-blur: 28px;
-    --lp-glass-fill: rgb(246 247 249 / 0.62);
+    --lp-glass-fill: rgb(246 247 249 / 0.3);
     --lp-glass-line: rgb(13 21 38 / 0.1);
     --lp-glass-highlight: rgb(255 255 255 / 0.65);
     --lp-glass-ink: var(--lp-ink);
@@ -168,6 +168,35 @@
     backdrop-filter: blur(var(--lp-glass-blur)) saturate(1.8);
     border-bottom-color: var(--lp-glass-line);
     box-shadow: inset 0 1px 0 var(--lp-glass-highlight);
+  }
+
+  /* Chromium: real glass. The displacement filter bulges the picture gently
+     through the middle of the bar and bends it harder around the rim, so the
+     whole bar reads as a piece of glass and not just frost. The frost runs after
+     the bend, so it is kept light enough not to smear it. */
+  .lp-nav.is-floating.is-magnifying {
+    -webkit-backdrop-filter: url(#lp-nav-bar-filter) blur(4px) saturate(1.7) brightness(1.02);
+    backdrop-filter: url(#lp-nav-bar-filter) blur(4px) saturate(1.7) brightness(1.02);
+    box-shadow:
+      inset 0 1px 0 var(--lp-glass-highlight),
+      inset 0 -1px 0 color-mix(in srgb, var(--lp-glass-ink) 14%, transparent),
+      0 10px 28px -14px rgb(0 0 0 / 0.4);
+  }
+
+  .lp-nav.is-over-dark.is-magnifying {
+    --lp-glass-fill: rgb(7 27 66 / 0.42);
+    --lp-glass-halo: 0 1px 10px rgb(2 10 30 / 0.55);
+  }
+
+  .lp-nav.is-magnifying:not(.is-over-dark) {
+    --lp-glass-fill: rgb(246 247 249 / 0.5);
+    --lp-glass-halo: 0 0 12px rgb(255 255 255 / 0.7);
+  }
+
+  /* Vibrancy: a soft halo in the fill's own colour keeps the labels legible when
+     busy content passes behind them. */
+  .lp-nav.is-magnifying .lp-nav-inner {
+    text-shadow: var(--lp-glass-halo);
   }
 
   /* Scroll edge effect: the band just below the bar where content fades as it
@@ -831,6 +860,7 @@
     }
 
     .lp-nav.is-floating,
+    .lp-nav.is-floating.is-magnifying,
     .lp-actionbar {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
@@ -874,6 +904,7 @@
     }
 
     .lp-nav.is-floating,
+    .lp-nav.is-floating.is-magnifying,
     .lp-actionbar {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;

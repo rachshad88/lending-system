@@ -73,6 +73,11 @@ export function lensMap(width, height, magnification = 1.35) {
     }
   }
 
+  return render(key, pullX, pullY, strongest, w, h);
+}
+
+/** Encodes per-pixel pulls as a displacement map image and caches the result. */
+function render(key, pullX, pullY, strongest, w, h) {
   const scale = strongest * 2;
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -90,4 +95,52 @@ export function lensMap(width, height, magnification = 1.35) {
   const result = { url: canvas.toDataURL(), scale, width: w, height: h };
   cache.set(key, result);
   return result;
+}
+
+/**
+ * Map for the whole nav bar, in the manner of Apple's glass: the bar stays
+ * aligned with the page beneath it side to side, and a thin band around the rim
+ * bends the picture, drawing it in from further inside the way the
+ * edge of a glass bead does. Nothing shifts sideways through the middle, so
+ * there is no detached, ghosted copy of the content.
+ *
+ * On top of that the whole height carries a gentle vertical bulge (`bulge`, the
+ * fraction of the distance from the centre line that the picture is drawn in),
+ * so the middle reads as glass too and not just as frost. `rim` is how thick
+ * the edge band is and `bend` how far, in pixels, it draws the picture in.
+ */
+export function barMap(width, height, rim = 18, bend = 12, bulge = 0.24) {
+  const w = Math.max(2, Math.round(width));
+  const h = Math.max(2, Math.round(height));
+  const key = `bar${w}x${h}@${rim},${bend},${bulge}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+
+  const pullX = new Float32Array(w * h);
+  const pullY = new Float32Array(w * h);
+  // 1 at the edge, easing to 0 a rim's thickness in.
+  const profile = (distance) => {
+    const t = Math.min(1, Math.max(0, 1 - distance / rim));
+    return t * t * (3 - 2 * t);
+  };
+
+  for (let y = 0; y < h; y += 1) {
+    const fromTop = y + 0.5;
+    const fromBottom = h - y - 0.5;
+    const pullDown = fromTop < fromBottom;
+    // The bulge: the picture is drawn towards the bar's centre line in proportion
+    // to how far it is from it, which enlarges it vertically like a glass rod.
+    // Vertical only, so the words stay lined up with the page horizontally.
+    const bulgeY = (h / 2 - fromTop) * bulge;
+    const strengthY = profile(Math.min(fromTop, fromBottom)) * bend;
+    for (let x = 0; x < w; x += 1) {
+      const fromLeft = x + 0.5;
+      const fromRight = w - x - 0.5;
+      const strengthX = profile(Math.min(fromLeft, fromRight)) * bend;
+      const i = y * w + x;
+      pullX[i] = fromLeft < fromRight ? strengthX : -strengthX;
+      pullY[i] = (pullDown ? strengthY : -strengthY) + bulgeY;
+    }
+  }
+  return render(key, pullX, pullY, bend + (h / 2) * bulge, w, h);
 }

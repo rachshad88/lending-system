@@ -10,7 +10,7 @@ import {
 } from 'motion/react';
 import { peso, pesoWhole } from '../lib/format';
 import { AnimatedNumber, EASE, Rise, SPRING } from './landingMotion';
-import { lensMap, supportsRefraction } from './glassLens';
+import { barMap, lensMap, supportsRefraction } from './glassLens';
 import './landing.css';
 
 // Swap these two for your own name and site: this is the credit line in the footer.
@@ -591,6 +591,76 @@ function Receipt({ t, amount, setAmount, term, setTerm, figures }) {
   );
 }
 
+const BAR_FILTER_ID = 'lp-nav-bar-filter';
+
+/**
+ * Makes the floating nav a real magnifier for whatever scrolls beneath it.
+ *
+ * Keeps a displacement filter sized to the header (through a ResizeObserver, so
+ * it follows window resizes) and returns the svg that holds it. Chromium only,
+ * like the hover lens; elsewhere the bar just stays frosted.
+ */
+function useBarLens(headerRef) {
+  const refractive = useMemo(() => supportsRefraction(), []);
+  const svgRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    const svg = svgRef.current;
+    if (!refractive || !header || !svg) return undefined;
+    const apply = () => {
+      const { width, height } = header.getBoundingClientRect();
+      if (width < 2 || height < 2) return;
+      const map = barMap(width, height);
+      const region = svg.querySelector('filter');
+      const image = svg.querySelector('feImage');
+      [region, image].forEach((node) => {
+        node.setAttribute('x', '0');
+        node.setAttribute('y', '0');
+        node.setAttribute('width', String(map.width));
+        node.setAttribute('height', String(map.height));
+      });
+      image.setAttribute('href', map.url);
+      svg.querySelector('feDisplacementMap').setAttribute('scale', String(map.scale));
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [headerRef, refractive]);
+
+  const svg = refractive ? (
+    <svg
+      ref={svgRef}
+      aria-hidden="true"
+      focusable="false"
+      className="pointer-events-none absolute h-0 w-0"
+    >
+      <defs>
+        <filter
+          id={BAR_FILTER_ID}
+          filterUnits="userSpaceOnUse"
+          x="0"
+          y="0"
+          width="1"
+          height="1"
+          colorInterpolationFilters="sRGB"
+        >
+          <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="map"
+            scale="0"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
+      </defs>
+    </svg>
+  ) : null;
+  return { svg, refractive };
+}
+
 export default function Landing() {
   const [lang, setLang] = useState('en');
   const [amount, setAmount] = useState(5000);
@@ -598,6 +668,8 @@ export default function Landing() {
 
   const heroRef = useRef(null);
   const pageTopRef = useRef(null);
+  const headerRef = useRef(null);
+  const barLens = useBarLens(headerRef);
   const { floating, onHero } = useGlassBar(pageTopRef, heroRef);
 
   const t = CONTENT[lang];
@@ -615,8 +687,12 @@ export default function Landing() {
         <div className="landing-page min-h-dvh pb-20 md:pb-0" lang={lang}>
           <span ref={pageTopRef} aria-hidden="true" className="absolute top-0 h-px w-px" />
 
+          {barLens.svg}
           <header
-            className={`lp-nav ${floating ? 'is-floating' : ''} ${onHero ? 'is-over-dark' : ''}`}
+            ref={headerRef}
+            className={`lp-nav ${floating ? 'is-floating' : ''} ${onHero ? 'is-over-dark' : ''} ${
+              barLens.refractive ? 'is-magnifying' : ''
+            }`}
           >
             <div className="lp-nav-inner mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
               <a
