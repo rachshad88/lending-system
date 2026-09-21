@@ -1,9 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Icon } from '../components/ui';
+import {
+  AnimatePresence,
+  domMax,
+  LazyMotion,
+  m,
+  MotionConfig,
+  useReducedMotion,
+} from 'motion/react';
 import { peso, pesoWhole } from '../lib/format';
+import { AnimatedNumber, EASE, Rise, SPRING } from './landingMotion';
+import { lensMap, supportsRefraction } from './glassLens';
+import './landing.css';
 
-// Swap these two for your own name and site — this is the credit line in the footer.
+// Swap these two for your own name and site: this is the credit line in the footer.
 const CRAFTED_BY = 'Dave Shadrach';
 const CRAFTED_BY_URL = 'https://github.com/rachshad88';
 
@@ -11,61 +21,46 @@ const INTEREST_RATE = 0.2;
 const DEFAULT_TERM = 40;
 
 const AMOUNT_PRESETS = [2000, 3000, 5000, 8000, 10000];
+const TERM_OPTIONS = [20, 30, 40, 50, 60];
 const RATE_TABLE_AMOUNTS = [2000, 3000, 5000, 8000, 10000];
 
-const STEP_META = [
-  { icon: 'members', tone: 'brand' },
-  { icon: 'check', tone: 'green' },
-  { icon: 'calendar', tone: 'amber' },
-];
+const CONTACT_KEYS = ['office', 'open', 'loanRange', 'collection'];
 
-const TONE_STYLE = {
-  brand: { background: 'var(--color-brand-soft)', color: 'var(--color-brand)' },
-  green: { background: 'rgb(52 199 89 / 0.16)', color: '#1f8a3a' },
-  amber: { background: 'rgb(255 159 10 / 0.16)', color: '#a5620a' },
-};
-
-const CONTACT_META = [
-  { icon: 'members', key: 'office' },
-  { icon: 'clock', key: 'open' },
-  { icon: 'peso', key: 'loanRange' },
-  { icon: 'calendar', key: 'collection' },
-];
-
-const HERO_TAGLINE = 'Serbisyong mabilis, patas, at malinaw.';
+const TAGLINE = 'Serbisyong mabilis, patas, at malinaw.';
 
 const CONTENT = {
   en: {
-    nav: { how: 'How it works', rates: 'Rates', requirements: 'Requirements', contact: 'Contact' },
+    nav: {
+      how: 'How it works',
+      rates: 'Rates',
+      requirements: 'Requirements',
+      contact: 'Contact',
+    },
     adminLogin: 'Admin login',
     hero: {
-      badge: 'Serving drivers and small earners since 2024',
+      eyebrow: 'Serving drivers and small earners since 2024',
       titleLine1: 'Small loans,',
       titleLine2: 'released the same day.',
       subhead:
         'Borrow what you need today and pay one fixed amount every day. No hidden charges, no surprises at the end.',
       ctaPrimary: 'Talk to us today',
       ctaSecondary: 'See how it works',
-      stats: [
-        { value: '40 days', label: 'Standard term' },
-        { value: 'Same day', label: 'Cash release' },
-        { value: '20% flat', label: 'No compounding' },
-      ],
     },
     calculator: {
       title: 'Estimate your daily payment',
-      pill: '20% flat',
       amountLabel: 'How much do you need?',
-      termLabel: 'Term:',
+      termLabel: 'Term',
       days: 'days',
-      payDaily: 'Pay daily',
-      interest: 'Interest',
+      payDaily: 'You pay every day',
+      interest: 'Interest (20%)',
       totalPayable: 'Total payable',
+      gridNote: (term, daily) =>
+        `${term} boxes, one for each daily payment of ${daily}. The filled box is your last.`,
       disclaimer:
         'Estimate only. A one-time 10% charge applies to any balance left unpaid after the due date. Final terms are confirmed at the office.',
+      barLabel: 'Daily',
     },
     how: {
-      pill: 'How it works',
       heading: 'Three steps, one visit.',
       body: 'We keep the process short because your time on the road is money. Most members walk out with cash the same afternoon.',
     },
@@ -84,7 +79,6 @@ const CONTENT = {
       },
     ],
     rates: {
-      pill: 'Rates',
       heading: 'What you pay is printed on day one.',
       body: 'A flat 20% on the amount you borrow, divided evenly across your term. The daily amount never changes.',
       table: {
@@ -97,7 +91,6 @@ const CONTENT = {
         'If a balance is still open after the due date, a one-time 10% charge is added to the remaining balance. It is charged once, never again on the same loan.',
     },
     requirements: {
-      pill: 'Requirements',
       heading: 'Bring these and we can start.',
       body: 'We lend to people we can reach and verify. If something on this list is missing, talk to us anyway. A referral from a current member goes a long way.',
       items: [
@@ -113,46 +106,44 @@ const CONTENT = {
       heading: 'Come see us. Bring your questions.',
       body: 'We are open six days a week. Ask for a computation before you decide. We will show you the exact daily amount and the total you will pay.',
       office: { label: 'Office', value: 'Brgy. Poblacion, Main St.' },
-      open: { label: 'Open', value: 'Mon–Sat, 8:00am – 5:00pm' },
-      loanRange: { label: 'Loan range', value: '₱1,500 – ₱20,000' },
+      open: { label: 'Open', value: 'Mon-Sat, 8:00am-5:00pm' },
+      loanRange: { label: 'Loan range', value: '₱1,500-₱20,000' },
       collection: { label: 'Collection', value: 'Daily, at your terminal' },
     },
-    footer: {
-      rights: 'All rights reserved.',
-      craftedBy: 'Crafted by',
-    },
+    footer: { rights: 'All rights reserved.', craftedBy: 'Crafted by' },
   },
   fil: {
-    nav: { how: 'Paano Ito Gumagana', rates: 'Mga Rate', requirements: 'Mga Kailangan', contact: 'Makipag-ugnayan' },
+    nav: {
+      how: 'Paano Ito Gumagana',
+      rates: 'Mga Rate',
+      requirements: 'Mga Kailangan',
+      contact: 'Makipag-ugnayan',
+    },
     adminLogin: 'Admin login',
     hero: {
-      badge: 'Naglilingkod sa mga drivers at maliliit na kumikita mula 2024',
+      eyebrow: 'Naglilingkod sa mga drivers at maliliit na kumikita mula 2024',
       titleLine1: 'Maliit na utang,',
       titleLine2: 'inilalabas sa parehong araw.',
       subhead:
         'Manghiram ng kailangan mo ngayon at magbayad ng iisang tiyak na halaga araw-araw. Walang tagong bayad, walang gulat sa huli.',
-      ctaPrimary: 'Makipag-usap sa amin ngayon',
-      ctaSecondary: 'Tingnan kung paano ito gumagana',
-      stats: [
-        { value: '40 araw', label: 'Karaniwang termino' },
-        { value: 'Parehong araw', label: 'Paglabas ng cash' },
-        { value: '20% patag', label: 'Walang tumutubong tubo' },
-      ],
+      ctaPrimary: 'Makipag-usap sa amin',
+      ctaSecondary: 'Paano ito gumagana',
     },
     calculator: {
       title: 'Tantyahin ang araw-araw mong babayaran',
-      pill: '20% patag',
       amountLabel: 'Magkano ang kailangan mo?',
-      termLabel: 'Termino:',
+      termLabel: 'Termino',
       days: 'araw',
-      payDaily: 'Bayad araw-araw',
-      interest: 'Tubo',
+      payDaily: 'Babayaran mo araw-araw',
+      interest: 'Tubo (20%)',
       totalPayable: 'Kabuuang babayaran',
+      gridNote: (term, daily) =>
+        `${term} kahon, isa para sa bawat araw-araw na bayad na ${daily}. Ang may kulay ang huling bayad.`,
       disclaimer:
         'Pagtantya lamang. May isang beses na 10% na singil sa anumang balanseng hindi nabayaran pagkatapos ng takdang petsa. Ang huling tuntunin ay kinukumpirma sa opisina.',
+      barLabel: 'Araw-araw',
     },
     how: {
-      pill: 'Paano Ito Gumagana',
       heading: 'Tatlong hakbang, isang pagbisita.',
       body: 'Pinapanatili naming maikli ang proseso dahil ang oras mo sa daan ay pera. Karamihan sa mga miyembro ay umuuwi nang may cash sa parehong hapon.',
     },
@@ -171,7 +162,6 @@ const CONTENT = {
       },
     ],
     rates: {
-      pill: 'Mga Rate',
       heading: 'Malinaw na nakasaad ang babayaran mo sa unang araw.',
       body: 'Isang patag na 20% sa halagang hiniram mo, pantay na hinati sa buong termino. Hindi nagbabago ang araw-araw na halaga.',
       table: {
@@ -184,7 +174,6 @@ const CONTENT = {
         'Kung may balanseng natitira pagkatapos ng takdang petsa, may idadagdag na isang beses na 10% na singil sa natitirang balanse. Isang beses lang ito sisingilin, hindi na muli sa parehong utang.',
     },
     requirements: {
-      pill: 'Mga Kailangan',
       heading: 'Dalhin ang mga ito at makakapagsimula na tayo.',
       body: 'Nagpapautang kami sa mga taong madali naming maabot at ma-verify. Kung may kulang sa listahang ito, kausapin pa rin kami. Malaking tulong ang referral mula sa kasalukuyang miyembro.',
       items: [
@@ -200,8 +189,8 @@ const CONTENT = {
       heading: 'Bisitahin kami. Dalhin ang iyong mga tanong.',
       body: 'Bukas kami anim na araw kada linggo. Humingi ng computation bago ka magdesisyon. Ipapakita namin ang eksaktong araw-araw na halaga at ang kabuuang babayaran mo.',
       office: { label: 'Opisina', value: 'Brgy. Poblacion, Main St.' },
-      open: { label: 'Bukas', value: 'Lun–Sab, 8:00am – 5:00pm' },
-      loanRange: { label: 'Saklaw ng utang', value: '₱1,500 – ₱20,000' },
+      open: { label: 'Bukas', value: 'Lun-Sab, 8:00am-5:00pm' },
+      loanRange: { label: 'Saklaw ng utang', value: '₱1,500-₱20,000' },
       collection: { label: 'Koleksyon', value: 'Araw-araw, sa iyong terminal' },
     },
     footer: {
@@ -211,108 +200,408 @@ const CONTENT = {
   },
 };
 
-/** Reveals its children with a fade-up the first time they scroll into view. */
-function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
+// The strip along the top of the viewport that the bar occupies, as a
+// percentage of viewport height. IntersectionObserver rootMargin cannot mix
+// px and % in one calc, so the band is expressed the same way it is used.
+const NAV_BAND_PCT = 8;
+
+/**
+ * Drives the two behaviours the glass bar needs, both from IntersectionObserver
+ * rather than a scroll listener: whether anything has passed beneath the bar
+ * yet, and whether what sits under it right now is the dark hero or the light
+ * page. The second is how the system picks light or dark labels for a bar, and
+ * it also decides when the phone action bar slides in.
+ */
+function useGlassBar(pageTopRef, heroRef) {
+  const [floating, setFloating] = useState(false);
+  const [onHero, setOnHero] = useState(true);
 
   useEffect(() => {
-    const el = ref.current;
+    const observers = [];
+
+    if (pageTopRef.current) {
+      const io = new IntersectionObserver(([entry]) => setFloating(!entry.isIntersecting));
+      io.observe(pageTopRef.current);
+      observers.push(io);
+    }
+
+    if (heroRef.current) {
+      // Shrinking the root to a thin strip along the top of the viewport turns
+      // this into exactly the question the bar needs answered: is the dark hero
+      // the thing currently underneath me? Observing the whole hero rather than
+      // a 1px sentinel matters, because a sentinel can pass from below the
+      // viewport to above it without ever intersecting, which fires no callback
+      // at all on an anchor jump or an End keypress.
+      const io = new IntersectionObserver(([entry]) => setOnHero(entry.isIntersecting), {
+        rootMargin: `0px 0px -${100 - NAV_BAND_PCT}% 0px`,
+      });
+      io.observe(heroRef.current);
+      observers.push(io);
+    }
+
+    return () => observers.forEach((io) => io.disconnect());
+  }, [pageTopRef, heroRef]);
+
+  return { floating, onHero };
+}
+
+const LENS_FILTER_ID = 'lp-nav-lens-filter';
+// Must match `inset: -6px -18px` on .lp-nav-lens in the stylesheet: the lens is
+// that much larger than the word's link on each side.
+const LENS_INSET = { x: 18, y: 6 };
+
+/**
+ * The nav words, with a glass lens that magnifies whichever one you are on.
+ *
+ * Hovering (or tabbing to) a word slides one shared lens over it. Where the
+ * browser can do real refraction (Chromium) that lens is genuinely optical: it
+ * sits in front of the word and bends the picture behind it, so the letters are
+ * magnified. Everywhere else it is the
+ * plain glass-and-rim lens sitting behind a word that scales up instead.
+ * Neighbouring words ease up a little either way, the way Apple's dock does.
+ *
+ * Mouse and pen only: touch has no hover, and these links are not shown below
+ * the lg breakpoint anyway. Reduce Motion (MotionConfig on the page root) drops
+ * the scaling and the glide, and the lens still appears so the hover has an
+ * answer.
+ */
+function NavLinks({ items }) {
+  const [active, setActive] = useState(null);
+  const refractive = useMemo(() => supportsRefraction(), []);
+  const svgRef = useRef(null);
+  const linkRefs = useRef([]);
+
+  const leave = () => setActive(null);
+
+  // Points the filter at a displacement map cut to the word the lens is about to
+  // sit on. Written straight to the SVG rather than through React state, and
+  // before paint, so the lens never flashes up carrying the previous word's map.
+  useLayoutEffect(() => {
+    const link = linkRefs.current[active];
+    const svg = svgRef.current;
+    if (!refractive || active === null || !link || !svg) return;
+    const { width, height } = link.getBoundingClientRect();
+    const map = lensMap(width + LENS_INSET.x * 2, height + LENS_INSET.y * 2);
+    const { url, scale } = map;
+    // Region and map are sized in real pixels: a percentage would resolve against
+    // this svg's own 0x0 viewport and leave the filter with no map at all.
+    const region = svg.querySelector('filter');
+    const image = svg.querySelector('feImage');
+    [region, image].forEach((node) => {
+      node.setAttribute('x', '0');
+      node.setAttribute('y', '0');
+      node.setAttribute('width', String(map.width));
+      node.setAttribute('height', String(map.height));
+    });
+    image.setAttribute('href', url);
+    svg.querySelector('feDisplacementMap').setAttribute('scale', String(scale));
+  }, [active, refractive]);
+
+  // With a real lens doing most of the magnifying, the word itself only needs a nudge.
+  const [zoomActive, zoomNear] = [1.2, 1.06];
+
+  return (
+    <>
+      {refractive && (
+        <svg
+          ref={svgRef}
+          aria-hidden="true"
+          focusable="false"
+          className="pointer-events-none absolute h-0 w-0"
+        >
+          <defs>
+            {/* sRGB matters: the default linearRGB would reinterpret the map's
+                channel values and displace by the wrong amounts. */}
+            <filter
+              id={LENS_FILTER_ID}
+              filterUnits="userSpaceOnUse"
+              x="0"
+              y="0"
+              width="1"
+              height="1"
+              colorInterpolationFilters="sRGB"
+            >
+              <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="map"
+                scale="0"
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="pulled"
+              />
+              {/* The map only bends the rim, so the word in the middle is not resampled
+                  and stays crisp. */}
+            </filter>
+          </defs>
+        </svg>
+      )}
+      <nav
+        className="hidden items-center gap-5 lg:flex"
+        aria-label="Sections"
+        onPointerLeave={leave}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) leave();
+        }}
+      >
+        {items.map(([href, label], index) => {
+          const distance = active === null ? null : Math.abs(index - active);
+          const scale = distance === 0 ? zoomActive : distance === 1 ? zoomNear : 1;
+          return (
+            <a
+              key={href}
+              href={href}
+              ref={(node) => {
+                linkRefs.current[index] = node;
+              }}
+              className="lp-nav-link"
+              onPointerEnter={(event) => {
+                if (event.pointerType !== 'touch') setActive(index);
+              }}
+              onFocus={() => setActive(index)}
+            >
+              {active === index && (
+                <m.span
+                  layoutId="nav-lens"
+                  className={`lp-nav-lens ${refractive ? 'is-refractive' : ''}`}
+                  transition={SPRING}
+                />
+              )}
+              <m.span className="lp-nav-label" animate={{ scale }} transition={SPRING}>
+                {label}
+              </m.span>
+            </a>
+          );
+        })}
+      </nav>
+    </>
+  );
+}
+
+const GRID_COLS = 10;
+const GRID_GAP = 5;
+
+/**
+ * A selection chip. The highlight is a single shared element (layoutId) that
+ * travels from the old choice to the new one, so a change of selection is seen
+ * as movement rather than as one box switching off and another switching on.
+ */
+function Chip({ selected, onClick, layoutId, children }) {
+  return (
+    <button type="button" aria-pressed={selected} onClick={onClick} className="lp-chip lp-num">
+      {selected && <m.span layoutId={layoutId} className="lp-chip-fill" transition={SPRING} />}
+      <span className="lp-chip-label">{children}</span>
+    </button>
+  );
+}
+
+/**
+ * One box per daily payment. Only the boxes that change animate: lengthening the
+ * term draws the new ones in, shortening it lets the extras fall away, and the
+ * card grows or shrinks with them instead of jumping. Replaying all forty on
+ * every tap would make the page feel busy rather than responsive.
+ */
+function PaymentGrid({ term }) {
+  const reduce = useReducedMotion();
+  const wrapRef = useRef(null);
+  const previousTerm = useRef(0);
+  const [cell, setCell] = useState(0);
+
+  // The grid's height is rows x cell size, and cell size follows the card's
+  // width, so it is measured rather than guessed. Measured before paint so the
+  // first frame is already correct.
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
     if (!el) return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 }
-    );
+    const measure = () => setCell((el.clientWidth - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS);
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
+  const rows = Math.ceil(term / GRID_COLS);
+  const height = cell ? Math.ceil(rows * cell + (rows - 1) * GRID_GAP) + 1 : 'auto';
+  // Boxes past this index are new this render and get the stagger.
+  const firstNew = previousTerm.current;
+
+  useEffect(() => {
+    previousTerm.current = term;
+  }, [term]);
+
   return (
-    <Tag
-      ref={ref}
-      className={`reveal ${visible ? 'reveal-visible' : ''} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
+    <m.div
+      ref={wrapRef}
+      className="lp-grid-wrap mt-5"
+      initial={false}
+      animate={{ height }}
+      transition={reduce ? { duration: 0 } : SPRING}
     >
-      {children}
-    </Tag>
+      <ol className="lp-grid" aria-hidden="true">
+        <AnimatePresence initial>
+          {Array.from({ length: term }, (_, index) => (
+            <m.li
+              key={index}
+              className={index === term - 1 ? 'is-last' : undefined}
+              initial={{ opacity: 0, scale: 0.4 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.14 } }}
+              transition={{
+                duration: 0.42,
+                ease: EASE,
+                delay: Math.max(0, index - firstNew) * 0.011,
+              }}
+            >
+              {index + 1}
+            </m.li>
+          ))}
+        </AnimatePresence>
+      </ol>
+    </m.div>
   );
 }
 
-/** Slow-drifting aurora blobs behind the hero, with a light cursor parallax. */
-function HeroBlobs() {
-  const wrapRef = useRef(null);
+/**
+ * The hero visual is the artifact the office hands you: a printed computation,
+ * with one box per daily payment underneath it. Changing the term redraws the
+ * grid, so the size of the commitment is something you see rather than read.
+ */
+function Receipt({ t, amount, setAmount, term, setTerm, figures }) {
+  const cardRef = useRef(null);
+  const frame = useRef(0);
 
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
-    let raf = null;
-    const onMove = (event) => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = null;
-        const el = wrapRef.current;
-        if (!el) return;
-        const { innerWidth: w, innerHeight: h } = window;
-        const dx = (event.clientX / w - 0.5) * 24;
-        const dy = (event.clientY / h - 0.5) * 24;
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
-      });
-    };
-    window.addEventListener('mousemove', onMove);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
+  // Liquid Glass answers a pointer with a moving highlight. A mouse only:
+  // touch has no hover, and Reduce Motion gets the resting highlight instead.
+  // The position is written straight to CSS variables rather than React state,
+  // so a moving mouse never re-renders the calculator.
+  const onPointerMove = (event) => {
+    if (event.pointerType !== 'mouse') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const { clientX, clientY } = event;
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = cardRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${clientX - rect.left}px`);
+      el.style.setProperty('--my', `${clientY - rect.top}px`);
+    });
+  };
+
+  const onPointerLeave = () => {
+    cancelAnimationFrame(frame.current);
+    cardRef.current?.style.removeProperty('--mx');
+    cardRef.current?.style.removeProperty('--my');
+  };
+
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   return (
-    <div ref={wrapRef} className="lp-aurora pointer-events-none absolute inset-0">
-      <span
-        className="blob"
-        style={{
-          top: '-14%',
-          left: '4%',
-          width: 420,
-          height: 420,
-          background: 'radial-gradient(circle, rgb(0 115 234 / 0.5), transparent 70%)',
-        }}
-      />
-      <span
-        className="blob"
-        style={{
-          top: '-4%',
-          right: '-4%',
-          width: 380,
-          height: 380,
-          background: 'radial-gradient(circle, rgb(52 199 89 / 0.45), transparent 70%)',
-          animationDelay: '-3s',
-          animationDuration: '13s',
-        }}
-      />
-      <span
-        className="blob"
-        style={{
-          bottom: '-22%',
-          left: '38%',
-          width: 400,
-          height: 400,
-          background: 'radial-gradient(circle, rgb(255 159 10 / 0.4), transparent 70%)',
-          animationDelay: '-6s',
-          animationDuration: '15s',
-        }}
-      />
+    <div className="lp-stage">
+      <div
+        ref={cardRef}
+        className="lp-receipt p-5 sm:p-6"
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+      >
+        <h2 className="text-xl font-semibold">{t.title}</h2>
+
+        <label className="lp-muted mb-2 mt-5 block text-[15px]" htmlFor="calc-amount">
+          {t.amountLabel}
+        </label>
+        <div className="lp-amount">
+          <span className="lp-muted text-2xl font-semibold" aria-hidden="true">
+            ₱
+          </span>
+          <input
+            id="calc-amount"
+            className="lp-num"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={6}
+            placeholder="0"
+            value={amount === 0 ? '' : String(amount)}
+            onChange={(event) => setAmount(Number(event.target.value.replace(/\D/g, '')) || 0)}
+          />
+        </div>
+
+        <div className="mt-2.5 grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {AMOUNT_PRESETS.map((preset) => (
+            <Chip
+              key={preset}
+              layoutId="chip-amount"
+              selected={amount === preset}
+              onClick={() => setAmount(preset)}
+            >
+              {pesoWhole(preset)}
+            </Chip>
+          ))}
+        </div>
+
+        <p id="calc-term-label" className="lp-muted mb-2 mt-5 text-[15px]">
+          {t.termLabel}:{' '}
+          <strong className="font-semibold text-[color:var(--lp-ink)]">
+            {term} {t.days}
+          </strong>
+        </p>
+        <div role="group" aria-labelledby="calc-term-label" className="grid grid-cols-5 gap-2">
+          {TERM_OPTIONS.map((option) => (
+            <Chip
+              key={option}
+              layoutId="chip-term"
+              selected={term === option}
+              onClick={() => setTerm(option)}
+            >
+              {option}
+            </Chip>
+          ))}
+        </div>
+
+        <div className="lp-rule-top mt-6 pt-5">
+          <p className="lp-muted text-[15px]">{t.payDaily}</p>
+          <p className="lp-num text-[44px] font-semibold leading-none tracking-[-0.03em] text-[color:var(--lp-accent)] sm:text-5xl">
+            <span aria-hidden="true">
+              <AnimatedNumber value={figures.daily} format={peso} />
+            </span>
+            <span className="sr-only" aria-live="polite">
+              {peso(figures.daily)}
+            </span>
+          </p>
+          <dl className="mt-4 grid gap-2 text-[15px]">
+            <div className="lp-receipt-row">
+              <dt className="lp-muted">{t.interest}</dt>
+              <dd className="lp-num font-medium">
+                <AnimatedNumber value={figures.interest} format={peso} />
+              </dd>
+            </div>
+            <div className="lp-receipt-row">
+              <dt className="lp-muted">{t.totalPayable}</dt>
+              <dd className="lp-num font-medium">
+                <AnimatedNumber value={figures.total} format={peso} />
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <PaymentGrid term={term} />
+        <p className="lp-muted mt-3 text-sm">{t.gridNote(term, peso(figures.daily))}</p>
+      </div>
     </div>
   );
 }
 
-function Calculator({ t }) {
+export default function Landing() {
+  const [lang, setLang] = useState('en');
   const [amount, setAmount] = useState(5000);
   const [term, setTerm] = useState(DEFAULT_TERM);
-  const cardRef = useRef(null);
+
+  const heroRef = useRef(null);
+  const pageTopRef = useRef(null);
+  const { floating, onHero } = useGlassBar(pageTopRef, heroRef);
+
+  const t = CONTENT[lang];
+  const isFil = lang === 'fil';
 
   const figures = useMemo(() => {
     const interest = amount * INTEREST_RATE;
@@ -320,376 +609,270 @@ function Calculator({ t }) {
     return { interest, total, daily: total / term };
   }, [amount, term]);
 
-  const termFillPct = ((term - 20) / (60 - 20)) * 100;
-
-  const handleTilt = (event) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const px = (event.clientX - rect.left) / rect.width - 0.5;
-    const py = (event.clientY - rect.top) / rect.height - 0.5;
-    card.style.transform = `perspective(900px) rotateX(${py * -6}deg) rotateY(${px * 8}deg) translateY(-2px)`;
-  };
-
-  const resetTilt = () => {
-    const card = cardRef.current;
-    if (card) card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
-  };
-
   return (
-    <div
-      ref={cardRef}
-      className="lp-glass lp-tilt w-full p-6 sm:p-7"
-      onMouseMove={handleTilt}
-      onMouseLeave={resetTilt}
-    >
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold">{t.title}</h2>
-        <span className="lp-pill lp-pill-tag">{t.pill}</span>
-      </div>
+    <MotionConfig reducedMotion="user">
+      <LazyMotion features={domMax} strict>
+        <div className="landing-page min-h-dvh pb-20 md:pb-0" lang={lang}>
+          <span ref={pageTopRef} aria-hidden="true" className="absolute top-0 h-px w-px" />
 
-      <label className="mb-2 block text-xs font-semibold text-muted" htmlFor="calc-amount">
-        {t.amountLabel}
-      </label>
-      <div className="mb-4 flex items-baseline gap-2 border-b-2 border-line pb-2.5 transition-colors focus-within:border-brand">
-        <span className="text-2xl font-extrabold text-brand">₱</span>
-        <input
-          id="calc-amount"
-          type="number"
-          min="500"
-          max="50000"
-          step="500"
-          value={amount}
-          onChange={(event) => setAmount(Math.max(0, Number(event.target.value) || 0))}
-          className="tnum w-full border-0 bg-transparent text-3xl font-extrabold tracking-tight outline-none sm:text-[34px]"
-        />
-      </div>
-
-      <div className="mb-6 flex flex-wrap gap-2">
-        {AMOUNT_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => setAmount(preset)}
-            className={`lp-preset ${amount === preset ? 'is-active' : ''}`}
+          <header
+            className={`lp-nav ${floating ? 'is-floating' : ''} ${onHero ? 'is-over-dark' : ''}`}
           >
-            {pesoWhole(preset)}
-          </button>
-        ))}
-      </div>
-
-      <label className="mb-2 block text-xs font-semibold text-muted" htmlFor="calc-term">
-        {t.termLabel} <span className="font-bold text-ink">{term} {t.days}</span>
-      </label>
-      <input
-        id="calc-term"
-        type="range"
-        min="20"
-        max="60"
-        step="10"
-        value={term}
-        onChange={(event) => setTerm(Number(event.target.value))}
-        className="lp-range mb-6"
-        style={{
-          background: `linear-gradient(to right, var(--color-brand) 0%, var(--color-brand) ${termFillPct}%, rgb(0 0 0 / 0.08) ${termFillPct}%, rgb(0 0 0 / 0.08) 100%)`,
-        }}
-      />
-
-      <dl className="grid gap-3 rounded-2xl bg-black/[0.03] p-4 sm:grid-cols-3">
-        <div>
-          <dt className="text-[10.5px] font-bold uppercase tracking-wide text-faint">{t.payDaily}</dt>
-          <dd key={`daily-${figures.daily}`} className="tnum pop text-xl font-extrabold text-green">
-            {peso(figures.daily)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[10.5px] font-bold uppercase tracking-wide text-faint">{t.interest}</dt>
-          <dd key={`interest-${figures.interest}`} className="tnum pop text-xl font-extrabold">
-            {peso(figures.interest)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[10.5px] font-bold uppercase tracking-wide text-faint">{t.totalPayable}</dt>
-          <dd key={`total-${figures.total}`} className="tnum pop text-xl font-extrabold">
-            {peso(figures.total)}
-          </dd>
-        </div>
-      </dl>
-
-      <p className="mt-3 text-xs leading-relaxed text-muted">{t.disclaimer}</p>
-    </div>
-  );
-}
-
-export default function Landing() {
-  const [lang, setLang] = useState('en');
-  const [scrolled, setScrolled] = useState(false);
-  const t = CONTENT[lang];
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  return (
-    <div className="landing-page min-h-screen bg-surface">
-      <header className={`lp-nav ${scrolled ? 'is-scrolled' : ''}`}>
-        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <a href="#top" className="flex items-center gap-2.5">
-            <img src="/drl-logo.svg" alt="DRL Lending Cooperative" className="h-10 w-10 rounded-[11px]" />
-            <span className="leading-tight">
-              <span className="block text-sm font-extrabold tracking-tight sm:text-base">
-                DRL Lending
-              </span>
-              <span className="block text-[10px] font-bold tracking-[0.18em] text-faint">
-                COOPERATIVE
-              </span>
-            </span>
-          </a>
-
-          <nav className="hidden items-center gap-7 text-sm font-semibold text-muted md:flex">
-            <a href="#how" className="nav-link transition-colors hover:text-ink">
-              {t.nav.how}
-            </a>
-            <a href="#rates" className="nav-link transition-colors hover:text-ink">
-              {t.nav.rates}
-            </a>
-            <a href="#requirements" className="nav-link transition-colors hover:text-ink">
-              {t.nav.requirements}
-            </a>
-            <a href="#contact" className="nav-link transition-colors hover:text-ink">
-              {t.nav.contact}
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLang((current) => (current === 'en' ? 'fil' : 'en'))}
-              className="lp-btn lp-btn-glass lp-btn-tiny font-bold"
-              aria-label={lang === 'en' ? 'Switch to Filipino' : 'Switch to English'}
-            >
-              {lang === 'en' ? 'FIL' : 'EN'}
-            </button>
-            <Link to="/login" className="lp-btn lp-btn-primary lp-btn-sm">
-              {t.adminLogin}
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section id="top" className="relative overflow-hidden border-b border-line">
-        <HeroBlobs />
-        <div className="relative mx-auto grid max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
-          <div>
-            <span className="hero-in lp-pill lp-pill-badge mb-5">
-              <Icon name="check" size={13} />
-              {t.hero.badge}
-            </span>
-
-            <h1
-              className="hero-in text-[clamp(2.2rem,6vw,3.8rem)] font-bold leading-[1.04] tracking-[-0.035em]"
-              style={{ animationDelay: '80ms' }}
-            >
-              {t.hero.titleLine1}
-              <br />
-              <span className="text-brand">{t.hero.titleLine2}</span>
-            </h1>
-
-            <p
-              className="hero-in mt-5 text-base font-semibold italic text-brand"
-              style={{ animationDelay: '160ms' }}
-            >
-              {HERO_TAGLINE}
-            </p>
-
-            <p
-              className="hero-in mt-2 max-w-xl text-lg leading-relaxed text-muted"
-              style={{ animationDelay: '220ms' }}
-            >
-              {t.hero.subhead}
-            </p>
-
-            <div className="hero-in mt-8 flex flex-wrap gap-3" style={{ animationDelay: '300ms' }}>
-              <a href="#contact" className="lp-btn lp-btn-primary group">
-                {t.hero.ctaPrimary}
-                <Icon name="chevronRight" size={17} className="transition-transform group-hover:translate-x-1" />
+            <div className="lp-nav-inner mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
+              <a
+                href="#top"
+                className="flex shrink-0 items-center gap-2.5"
+                aria-label="DRL Lending Cooperative"
+              >
+                <img src="/drl-logo.svg" alt="" width="32" height="32" className="h-8 w-8" />
+                <span className="whitespace-nowrap text-[17px] font-semibold tracking-[-0.02em]">
+                  DRL Lending
+                </span>
               </a>
-              <a href="#how" className="lp-btn lp-btn-glass">
-                {t.hero.ctaSecondary}
-              </a>
-            </div>
 
-            <dl
-              className="hero-in mt-11 grid max-w-lg grid-cols-3 gap-4 border-t border-line/70 pt-6"
-              style={{ animationDelay: '380ms' }}
-            >
-              {t.hero.stats.map((item) => (
-                <div key={item.label}>
-                  <dt className="tnum text-xl font-extrabold tracking-tight sm:text-2xl">
-                    {item.value}
-                  </dt>
-                  <dd className="text-xs font-semibold text-faint sm:text-sm">{item.label}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+              <NavLinks
+                items={[
+                  ['#how', t.nav.how],
+                  ['#rates', t.nav.rates],
+                  ['#requirements', t.nav.requirements],
+                  ['#contact', t.nav.contact],
+                ]}
+              />
 
-          <div className="hero-in" style={{ animationDelay: '200ms' }}>
-            <Calculator t={t.calculator} />
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section id="how" className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24">
-        <Reveal className="mb-10 max-w-2xl">
-          <span className="lp-pill lp-pill-tag mb-3">{t.how.pill}</span>
-          <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-bold leading-tight tracking-[-0.03em]">
-            {t.how.heading}
-          </h2>
-          <p className="mt-3 text-lg text-muted">{t.how.body}</p>
-        </Reveal>
-
-        <ol className="grid gap-5 md:grid-cols-3">
-          {t.steps.map((step, index) => (
-            <Reveal key={step.title} as="li" delay={index * 90} className="lp-glass lift p-7">
-              <div className="mb-5 flex items-center justify-between">
-                <span
-                  className="grid h-11 w-11 place-items-center rounded-[15px]"
-                  style={TONE_STYLE[STEP_META[index].tone]}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLang(isFil ? 'en' : 'fil')}
+                  className="lp-btn lp-btn-quiet lp-btn-sm"
+                  aria-label={isFil ? 'Switch to English' : 'Switch to Filipino'}
                 >
-                  <Icon name={STEP_META[index].icon} size={21} />
-                </span>
-                <span className="tnum text-3xl font-extrabold text-line">0{index + 1}</span>
+                  {isFil ? 'EN' : 'FIL'}
+                </button>
+                <Link to="/login" className="lp-btn lp-btn-quiet lp-btn-sm">
+                  {t.adminLogin}
+                </Link>
               </div>
-              <h3 className="text-lg font-bold">{step.title}</h3>
-              <p className="mt-2 text-muted">{step.body}</p>
-            </Reveal>
-          ))}
-        </ol>
-      </section>
-
-      {/* Rates */}
-      <section id="rates" className="bg-surface">
-        <div className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24">
-          <Reveal className="mb-8 max-w-2xl">
-            <span className="lp-pill lp-pill-tag mb-3">{t.rates.pill}</span>
-            <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-bold leading-tight tracking-[-0.03em]">
-              {t.rates.heading}
-            </h2>
-            <p className="mt-3 text-lg text-muted">{t.rates.body}</p>
-          </Reveal>
-
-          <Reveal delay={100} className="lp-glass overflow-hidden">
-            <div className="table-wrap">
-              <table className="lp-table">
-                <thead>
-                  <tr>
-                    <th>{t.rates.table.loanAmount}</th>
-                    <th className="num">{t.rates.table.interest}</th>
-                    <th className="num">{t.rates.table.totalPayable}</th>
-                    <th className="num">{t.rates.table.dailyFor40}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {RATE_TABLE_AMOUNTS.map((principal) => {
-                    const interest = principal * INTEREST_RATE;
-                    const total = principal + interest;
-                    return (
-                      <tr key={principal}>
-                        <td className="font-bold">{pesoWhole(principal)}</td>
-                        <td className="num tnum text-muted">{pesoWhole(interest)}</td>
-                        <td className="num tnum font-semibold">{pesoWhole(total)}</td>
-                        <td className="num tnum font-extrabold text-green">{peso(total / 40)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
-          </Reveal>
+          </header>
 
-          <p className="mt-4 flex items-start gap-2 text-sm text-muted">
-            <Icon name="risk" size={16} className="mt-0.5 shrink-0 text-amber" />
-            {t.rates.footnote}
-          </p>
-        </div>
-      </section>
+          <main>
+            {/* Hero. The navy field is what makes the bar above it legible as glass,
+            and what that bar adapts its labels to. */}
+            <section id="top" ref={heroRef} className="lp-hero">
+              <div className="mx-auto grid max-w-[1180px] gap-12 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_450px] lg:items-center lg:gap-16 lg:pb-24 lg:pt-16">
+                {/* Keyed on the language so the copy re-mounts and its own staggered rise
+                plays on the new text. There is deliberately no exit animation:
+                the new language must appear the moment it is chosen, not after
+                the old one has finished leaving. */}
+                <div key={lang}>
+                  <Rise>
+                    <p className="lp-hero-muted text-base">{t.hero.eyebrow}</p>
+                  </Rise>
+                  <Rise delay={70}>
+                    <h1
+                      className={`mt-4 text-balance ${
+                        isFil
+                          ? 'text-[clamp(2.1rem,3.8vw,2.9rem)]'
+                          : 'text-[clamp(2.6rem,4.8vw,3.7rem)]'
+                      }`}
+                    >
+                      <span className="block">{t.hero.titleLine1}</span>
+                      <span className="block opacity-70">{t.hero.titleLine2}</span>
+                    </h1>
+                  </Rise>
+                  <Rise delay={140}>
+                    <p className="lp-hero-muted mt-6 max-w-[44ch] text-lg leading-relaxed">
+                      {t.hero.subhead}
+                    </p>
+                  </Rise>
+                  <Rise delay={210}>
+                    <div className="mt-9 flex flex-wrap gap-3">
+                      <a href="#contact" className="lp-btn lp-btn-primary">
+                        {t.hero.ctaPrimary}
+                      </a>
+                      <a href="#how" className="lp-btn lp-btn-quiet">
+                        {t.hero.ctaSecondary}
+                      </a>
+                    </div>
+                  </Rise>
+                </div>
 
-      {/* Requirements */}
-      <section id="requirements" className="mx-auto max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24">
-        <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <Reveal>
-            <span className="lp-pill lp-pill-tag mb-3">{t.requirements.pill}</span>
-            <h2 className="text-[clamp(1.7rem,4vw,2.6rem)] font-bold leading-tight tracking-[-0.03em]">
-              {t.requirements.heading}
-            </h2>
-            <p className="mt-3 text-lg text-muted">{t.requirements.body}</p>
-          </Reveal>
-
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {t.requirements.items.map((item, index) => (
-              <Reveal key={item} as="li" delay={index * 60} className="lp-glass lift flex items-center gap-3 p-4">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green-soft text-green">
-                  <Icon name="check" size={15} strokeWidth={2.6} />
-                </span>
-                <span className="font-semibold">{item}</span>
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* Contact */}
-      <section id="contact" className="border-t border-line bg-navy text-white">
-        <div className="mx-auto grid max-w-[1180px] gap-8 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:items-center">
-          <Reveal>
-            <h2 className="text-[clamp(1.8rem,4vw,2.7rem)] font-bold leading-tight tracking-[-0.03em] text-white">
-              {t.contact.heading}
-            </h2>
-            <p className="mt-4 max-w-lg text-lg text-white/70">{t.contact.body}</p>
-          </Reveal>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {CONTACT_META.map((meta, index) => {
-              const item = t.contact[meta.key];
-              return (
-                <Reveal key={meta.key} delay={index * 70} className="lp-glass-dark p-5">
-                  <span className="mb-3 grid h-9 w-9 place-items-center rounded-[11px] bg-white/10 text-white">
-                    <Icon name={meta.icon} size={18} />
-                  </span>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-white/48">
-                    {item.label}
+                <Rise delay={120}>
+                  <Receipt
+                    t={t.calculator}
+                    amount={amount}
+                    setAmount={setAmount}
+                    term={term}
+                    setTerm={setTerm}
+                    figures={figures}
+                  />
+                  <p className="lp-hero-muted mt-3 text-sm leading-relaxed">
+                    {t.calculator.disclaimer}
                   </p>
-                  <p className="font-semibold text-white">{item.value}</p>
-                </Reveal>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+                </Rise>
+              </div>
+            </section>
 
-      <footer className="bg-navy text-white/60">
-        <div className="mx-auto flex max-w-[1180px] flex-col gap-4 border-t border-white/10 px-4 py-7 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>
-            © {new Date().getFullYear()} DRL Lending Cooperative. {t.footer.rights}
-          </p>
-          <p>
-            {t.footer.craftedBy}{' '}
-            <a
-              href={CRAFTED_BY_URL}
-              className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white"
-            >
-              {CRAFTED_BY}
+            {/* How it works */}
+            <section id="how">
+              <div className="mx-auto grid max-w-[1180px] gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20 lg:py-28">
+                <Rise className="lg:sticky lg:top-28 lg:self-start">
+                  <h2 className="text-balance text-[clamp(2rem,4vw,3rem)]">{t.how.heading}</h2>
+                  <p className="lp-muted mt-4 max-w-[44ch] text-lg leading-relaxed">{t.how.body}</p>
+                </Rise>
+
+                <ol>
+                  {t.steps.map((step, index) => (
+                    <Rise
+                      key={step.title}
+                      as="li"
+                      delay={index * 90}
+                      className="lp-rule-top block py-8 last:border-b last:border-[color:var(--lp-line)] sm:py-10"
+                    >
+                      <h3 className="text-2xl sm:text-[28px]">{step.title}</h3>
+                      <p className="lp-muted mt-3 max-w-[52ch] text-lg leading-relaxed">
+                        {step.body}
+                      </p>
+                    </Rise>
+                  ))}
+                </ol>
+              </div>
+            </section>
+
+            {/* Rates */}
+            <section id="rates" className="lp-band">
+              <div className="mx-auto max-w-[1180px] px-4 py-20 sm:px-6 lg:py-28">
+                <Rise>
+                  <h2 className="max-w-[24ch] text-balance text-[clamp(2rem,4vw,3rem)]">
+                    {t.rates.heading}
+                  </h2>
+                  <p className="lp-muted mt-4 max-w-[60ch] text-lg leading-relaxed">
+                    {t.rates.body}
+                  </p>
+                </Rise>
+
+                <Rise delay={80}>
+                  <table className="lp-table mt-10">
+                    <caption className="sr-only">{t.rates.heading}</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t.rates.table.loanAmount}</th>
+                        <th scope="col">{t.rates.table.interest}</th>
+                        <th scope="col">{t.rates.table.totalPayable}</th>
+                        <th scope="col">{t.rates.table.dailyFor40}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {RATE_TABLE_AMOUNTS.map((principal) => {
+                        const interest = principal * INTEREST_RATE;
+                        const total = principal + interest;
+                        return (
+                          <tr key={principal}>
+                            <td>{pesoWhole(principal)}</td>
+                            <td data-label={t.rates.table.interest}>{pesoWhole(interest)}</td>
+                            <td data-label={t.rates.table.totalPayable}>{pesoWhole(total)}</td>
+                            <td data-label={t.rates.table.dailyFor40}>{peso(total / 40)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <p className="lp-muted mt-6 max-w-[68ch] text-[15px] leading-relaxed">
+                    {t.rates.footnote}
+                  </p>
+                </Rise>
+              </div>
+            </section>
+
+            {/* Requirements */}
+            <section id="requirements">
+              <div className="mx-auto max-w-[1180px] px-4 py-20 sm:px-6 lg:py-28">
+                <Rise>
+                  <h2 className="max-w-[24ch] text-balance text-[clamp(2rem,4vw,3rem)]">
+                    {t.requirements.heading}
+                  </h2>
+                  <p className="lp-muted mt-4 max-w-[60ch] text-lg leading-relaxed">
+                    {t.requirements.body}
+                  </p>
+                </Rise>
+
+                <ul className="mt-10 grid gap-x-16 gap-y-6 sm:grid-cols-2">
+                  {t.requirements.items.map((item, index) => (
+                    <Rise key={item} as="li" delay={index * 55} className="flex gap-4">
+                      <span className="lp-check" aria-hidden="true" />
+                      <span className="text-xl leading-snug">{item}</span>
+                    </Rise>
+                  ))}
+                </ul>
+              </div>
+            </section>
+
+            {/* Contact */}
+            <section id="contact" className="lp-band">
+              <div className="mx-auto max-w-[1180px] px-4 py-20 sm:px-6 lg:py-28">
+                <Rise>
+                  <h2 className="max-w-[22ch] text-balance text-[clamp(2.25rem,5vw,3.75rem)]">
+                    {t.contact.heading}
+                  </h2>
+                  <p className="lp-muted mt-5 max-w-[56ch] text-lg leading-relaxed">
+                    {t.contact.body}
+                  </p>
+                </Rise>
+
+                <dl className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                  {CONTACT_KEYS.map((key, index) => (
+                    <Rise key={key} delay={index * 70} className="lp-fact">
+                      <dt className="lp-muted text-[15px]">{t.contact[key].label}</dt>
+                      <dd className="mt-1 text-xl font-medium leading-snug">
+                        {t.contact[key].value}
+                      </dd>
+                    </Rise>
+                  ))}
+                </dl>
+              </div>
+            </section>
+          </main>
+
+          <footer className="lp-band lp-rule-top">
+            <div className="mx-auto flex max-w-[1180px] flex-col gap-3 px-4 py-8 text-[15px] sm:px-6 md:flex-row md:items-center md:justify-between">
+              <p className="lp-muted">
+                © {new Date().getFullYear()} DRL Lending Cooperative. {t.footer.rights}
+              </p>
+              <p>{TAGLINE}</p>
+              <p className="lp-muted">
+                {t.footer.craftedBy}{' '}
+                <a
+                  href={CRAFTED_BY_URL}
+                  className="font-medium text-[color:var(--lp-ink)] underline underline-offset-4"
+                >
+                  {CRAFTED_BY}
+                </a>
+              </p>
+            </div>
+          </footer>
+
+          {/* The one glass surface in the functional layer. It carries the live figure past the hero so
+          the number stays with you while you read the rates. Off screen it is
+          inert, so its link cannot be tabbed to while invisible. */}
+          <m.div
+            className="lp-actionbar"
+            initial={false}
+            animate={{ y: onHero ? '110%' : '0%' }}
+            transition={SPRING}
+            inert={onHero ? '' : undefined}
+          >
+            <p className="min-w-0">
+              <span className="lp-muted block text-[13px]">{t.calculator.barLabel}</span>
+              <span className="lp-num block text-xl font-semibold leading-tight">
+                <AnimatedNumber value={figures.daily} format={peso} />
+              </span>
+            </p>
+            <a href="#contact" className="lp-btn lp-btn-primary lp-btn-sm">
+              {t.hero.ctaPrimary}
             </a>
-          </p>
+          </m.div>
         </div>
-      </footer>
-    </div>
+      </LazyMotion>
+    </MotionConfig>
   );
 }
